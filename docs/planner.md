@@ -65,7 +65,7 @@ tags: [toybox, project, planner]
 - 2026-06-22: 피드백 4종 모두 포함(사용자 선택): 타건음 + 햅틱 + LED + 카운터/통계.
 - 2026-06-22: 스위치 = **여러 종 선택**(사용자 선택). v1 카탈로그: 청축(blue)·갈축(brown)·적축(red)·흑축(black).
 - 2026-06-22: 사운드 = 라이선스 리스크 회피 위해 **합성(synthesized) WAV**를 커밋된 파이썬 스크립트로 생성·번들. 외부 다운로드/저작권 자산 미사용.
-- 2026-06-22: 저지연 연타 위해 오디오는 **soundpool**(Android SoundPool 래퍼) 사용. 탭다운=down음, 탭업=up음. pub 해상도/빌드 실패 시 audioplayers low-latency를 문서화된 폴백으로 둔다.
+- 2026-06-22: 저지연 연타 위해 오디오는 ~~soundpool~~ → **audioplayers**(`AudioPool`, low-latency)로 변경. 이유(T004 BLOCKED): soundpool 2.4.1(최신·discontinued)이 제거된 v1 Flutter Android 임베딩(`PluginRegistry.Registrar`)을 써서 Flutter 3.41.7에서 `:soundpool:compileDebugKotlin` 컴파일 실패, 더 올릴 버전도 없음. Dart는 `SoundBackend`로 플러그인을 격리해둬서 백엔드 구현(SoundpoolBackend→AudioPlayersBackend)과 프로바이더 배선만 교체, 인터페이스·테스트 불변. 탭다운=down음, 탭업=up음 유지.
 - 2026-06-22: 설정/통계 영구 저장 = **shared_preferences**(단순 key-value). devlingo는 hive를 썼으나 여기선 카운터·토글 위주라 더 가벼운 선택.
 - 2026-06-22: app id = `com.secondsyndrome.cliker` (이메일 도메인 2ndsyndrome.com 기반; 'com.2ndsyndrome'은 세그먼트가 숫자로 시작해 Android 규칙 위반이라 secondsyndrome로 변환). 퍼블리시 전 사용자 확정 필요.
 - 2026-06-22: 디자인 = 다크 + 네온 RGB 게이밍 무드(키보드 LED 감성). 라이트 테마 없음(v1).

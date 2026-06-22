@@ -25,4 +25,4 @@ tags: [toybox, errorlog]
 ## Log
 | date | task | error signature | layer | count | root cause | fix / skill-or-agent improved | reloaded? |
 |------|------|-----------------|-------|-------|------------|-------------------------------|-----------|
-| 2026-06-22 | — | — | — | 0 | — | — | — |
+| 2026-06-22 | T004 | `soundpool …SoundpoolPlugin.kt: Unresolved reference 'Registrar'` → `:soundpool:compileDebugKotlin` failed | Build (apk) | 1 | soundpool 2.4.1 (latest, discontinued) uses the removed v1 Flutter Android embedding (`PluginRegistry.Registrar`/`registerWith`), incompatible with Flutter 3.41.7. No newer version to bump to. | 1st occurrence → normal fix: planner swaps audio package soundpool → **audioplayers** (`AudioPool`, low-latency). Dart already isolates the plugin behind `SoundBackend`, so only the backend impl + provider wiring change; tests unchanged. No skill change yet. | n/a |

@@ -55,6 +55,21 @@ soundpool은 cliker 첫 네이티브 플러그인이므로, 이 작업이 **Andr
 - Build: required (AC5 — soundpool 네이티브 통합 증명, debug apk)
 - Runtime smoke: N/A: 실행 화면 없음 (T006에서 실제 재생 스모크)
 
+## Planner amendment (2026-06-22) — audio package: soundpool → audioplayers
+원안의 **soundpool**는 인프라적으로 빌드 불가(2.4.1 최신·discontinued, 제거된 v1
+Android 임베딩 `PluginRegistry.Registrar` 사용 → `:soundpool:compileDebugKotlin`
+실패, Flutter 3.41.7). 플래너 결정으로 저지연 백엔드를 **audioplayers**(`AudioPool`)로
+교체한다. 다음을 제외한 스코프·AC는 그대로 유지:
+- `SoundBackend` 추상화/인터페이스, `ClickSoundPlayer`, `Haptics`, 두 프로바이더의
+  형태(shape), 모든 단위/위젯 테스트는 **불변**(백엔드 교체에 영향받지 않음).
+- `SoundpoolBackend` 대신 `AudioPlayersBackend implements SoundBackend`를 구현
+  (asset당 `AudioPool` 생성, `play`=`pool.start(volume:)`). pubspec: soundpool 제거,
+  `audioplayers` 추가.
+- AC5의 빌드 스모크는 **audioplayers** 통합 기준으로 `flutter build apk --debug` 성공이어야 함.
+- audioplayers `AssetSource`의 prefix 주의: 등록 경로 `assets/sounds/x.wav`에 대해
+  `AssetSource`는 'assets/'를 자동 prefix하므로 `sounds/x.wav`로 넘긴다(또는 동등 처리).
+  실제 재생/asset 로드 검증은 T006 런타임 스모크에서.
+
 ## Evidence
 - Dev evidence:  docs/tasks/T004/evidence/dev/
 - QA evidence:   docs/tasks/T004/evidence/qa/
