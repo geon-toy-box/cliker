@@ -1,0 +1,43 @@
+---
+task: {{TASK_ID}}
+project: {{NAME}}
+milestone: <M?>
+created: {{DATE}}
+status: TODO
+tags: [toybox, task]
+---
+
+# {{TASK_ID}} — <title>
+
+> Written by the Planner and **immutable once dispatched** to a worker. If it
+> turns out wrong, the Planner issues a follow-up task rather than editing this.
+> The developer implements to this; QA verifies against the Acceptance criteria
+> below — so they must be concrete and checkable, never vague.
+
+## Context
+<!-- Why this task exists, what part of the product it advances, links to planner.md milestone. -->
+
+## Scope — what to build
+<!-- Specific, bounded. One coherent unit of work. -->
+
+## Out of scope
+<!-- Explicitly what NOT to do, to prevent drift. -->
+
+## Acceptance criteria (QA verifies each)
+<!-- Each must be objectively checkable. QA marks met/NOT MET with evidence. -->
+- [ ] AC1:
+- [ ] AC2:
+
+## Test plan — which pyramid layers apply
+<!-- State applicability for each. "N/A: reason" is allowed; silence is not. -->
+- Format / Analyze: required
+- Unit: <which logic>
+- Widget: <which UI>
+- Golden: <which visual surface | N/A: reason>
+- Integration: <which flow | N/A: reason>
+- Build: required
+- Runtime smoke: <required | N/A: reason>
+
+## Evidence
+- Dev evidence:  docs/tasks/{{TASK_ID}}/evidence/dev/
+- QA evidence:   docs/tasks/{{TASK_ID}}/evidence/qa/
