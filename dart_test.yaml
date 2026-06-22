@@ -1,0 +1,6 @@
+# Test tags recognized by the suite. The `golden` tag marks pixel-comparison
+# tests so they can be selected (`flutter test --tags golden`) or excluded
+# (`flutter test --exclude-tags golden`) without an "unknown tag" warning.
+tags:
+  golden:
+    description: Golden (pixel) comparison tests.
