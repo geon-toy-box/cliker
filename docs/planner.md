@@ -46,7 +46,7 @@ tags: [toybox, project, planner]
 
 | id | title | milestone | depends on | status | verified-by |
 |----|-------|-----------|------------|--------|-------------|
-| T001 | Foundation: dependencies + dark RGB theme tokens | M1 | — | TODO | — |
+| T001 | Foundation: dark RGB theme tokens | M1 | — | DONE | qa.md PASS · 9593ce2 |
 | T002 | Switch domain catalog + synthesized switch sound assets | M1 | T001 | TODO | — |
 | T003 | Persistence + settings & stats state (Riverpod) | M1 | T002 | TODO | — |
 | T004 | Audio service (low-latency soundpool) + haptics service | M1 | T002 | TODO | — |
@@ -79,3 +79,4 @@ tags: [toybox, project, planner]
 ## Reflected results
 <!-- Append-only. Each entry is the Planner's audited summary of a completed task,
      citing the qa.md verdict and commit it trusts. -->
+- 2026-06-22 · **T001 DONE** (commit `9593ce2`, qa.md `## Verdict: PASS`). 다크+네온 RGB 디자인 토큰 확정: `AppColors`(bg/surface/keycap/text + 6색 ledPalette + 스위치 스템색, accentDefault=neonCyan), `AppSpacing`/`AppRadius`, `appTheme()`는 명시적 dark `ColorScheme`(primary=neonCyan, fromSeed 미사용). Planner 직접 확인: `flutter analyze` clean, `flutter test` 16 green, pubspec drift 없음. 신규 패키지 의존성 추가 없음(스코프 준수).
