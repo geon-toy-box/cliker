@@ -6,6 +6,7 @@ import 'package:cliker/services/haptics.dart';
 import 'package:cliker/theme/app_colors.dart';
 import 'package:cliker/theme/app_spacing.dart';
 import 'package:cliker/widgets/keycap.dart';
+import 'package:cliker/widgets/settings_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -27,6 +28,9 @@ class HomeScreen extends ConsumerWidget {
 
   /// Key prefix for switch-selector chips; full key is `Key('switch-chip-<id>')`.
   static Key switchChipKey(String id) => Key('switch-chip-$id');
+
+  /// Key on the settings entry-point button (opens [SettingsSheet]).
+  static const Key settingsButtonKey = Key('settings-button');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -64,11 +68,24 @@ class HomeScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(
             children: <Widget>[
+              // Top bar: the settings entry point, right-aligned above the
+              // stats so it stays clear of the central keycap.
+              Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  key: HomeScreen.settingsButtonKey,
+                  icon: const Icon(Icons.settings_outlined),
+                  color: AppColors.textMuted,
+                  tooltip: '설정',
+                  onPressed: () => SettingsSheet.show(context),
+                ),
+              ),
               _StatsReadout(stats: stats),
               Expanded(
                 child: Center(
                   child: Keycap(
                     ledColor: Color(settings.ledColorArgb),
+                    ledMode: settings.ledMode,
                     label: selected.nameEn,
                     onPressDown: handlePressDown,
                     onPressUp: handlePressUp,
