@@ -69,12 +69,11 @@ tags: [toybox, project, planner]
 - 2026-06-22: 설정/통계 영구 저장 = **shared_preferences**(단순 key-value). devlingo는 hive를 썼으나 여기선 카운터·토글 위주라 더 가벼운 선택.
 - 2026-06-22: app id = `com.secondsyndrome.cliker` (이메일 도메인 2ndsyndrome.com 기반; 'com.2ndsyndrome'은 세그먼트가 숫자로 시작해 Android 규칙 위반이라 secondsyndrome로 변환). 퍼블리시 전 사용자 확정 필요.
 - 2026-06-22: 디자인 = 다크 + 네온 RGB 게이밍 무드(키보드 LED 감성). 라이트 테마 없음(v1).
+- 2026-06-22 (사용자 확정): **앱 표시 이름 = "클리커"**(한글; 런처 라벨 + 스토어 제목). app id = **com.secondsyndrome.cliker** 확정(출시 후 영구). 릴리스 서명 **keystore는 플래너가 생성**(업로드 키, key.properties는 gitignore) — 사용자가 keystore 파일+비밀번호를 안전 백업해야 하며, Play 앱 서명 사용 시 업로드 키 분실은 재설정 가능. 실제 Play 업로드는 사용자가 자기 계정으로 수행(플래너는 업로드까지 하지 않음, AAB+메타데이터까지 준비).
 
 ## Open questions (for the user)
 <!-- Things the Planner needs the user to decide. Resolve via tiki-taka, then move to Decisions. -->
-- app id `com.secondsyndrome.cliker` 그대로 갈지, 다른 reverse-DNS를 쓸지 (퍼블리시 전 확정).
-- 릴리스 keystore: 내가 업로드 키스토어를 생성해 드릴지(사용자가 안전 백업), 아니면 사용자가 직접 만들지 (M3 진입 시 결정).
-- 앱 표시 이름: "cliker" / "클리커" / 다른 이름?
+- (없음 — M3 식별/서명 결정 모두 확정, Decisions log 참조)
 
 ## Reflected results
 <!-- Append-only. Each entry is the Planner's audited summary of a completed task,
