@@ -50,6 +50,21 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   integration_test:
     sdk: flutter
+  # Build-time only: generates the Android launcher mipmaps + adaptive icon from
+  # the committed assets/icon/ sources (see the flutter_launcher_icons: block
+  # below). Not a runtime dependency.
+  flutter_launcher_icons: ^0.14.4
+
+# Launcher-icon generation. Run `dart run flutter_launcher_icons` to (re)build
+# the Android mipmap resources and the adaptive icon from the committed sources.
+# The source PNGs themselves are rendered from lib/icon/app_icon.dart by the
+# `icon-gen` test (test/tools/generate_app_icon_test.dart) — no external assets.
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/icon.png"
+  adaptive_icon_background: "#0A0A0F"
+  adaptive_icon_foreground: "assets/icon/icon_foreground.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
