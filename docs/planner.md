@@ -50,7 +50,7 @@ tags: [toybox, project, planner]
 | T002 | Switch domain catalog + synthesized switch sound assets | M1 | T001 | DONE | qa.md PASS · 52b146d |
 | T003 | Persistence + settings & stats state (Riverpod) | M1 | T002 | DONE | qa.md PASS · 4cfc6d0 |
 | T004 | Audio service (low-latency soundpool) + haptics service | M1 | T002 | TODO | — |
-| T005 | Keycap widget + LED ripple/glow effects | M1 | T001 | TODO | — |
+| T005 | Keycap widget + LED ripple/glow effects | M1 | T001 | DONE | qa.md PASS · 689d017 |
 | T006 | Home screen wiring (keycap + audio + haptics + stats + switch selector) | M1 | T003,T004,T005 | TODO | — |
 | T007 | Settings & customization (LED modes, color, sound/haptic toggles) | M2 | T006 | TODO | — |
 | T008 | Stats panel (total · session · CPM · best) + reset | M2 | T006 | TODO | — |
@@ -82,3 +82,4 @@ tags: [toybox, project, planner]
 - 2026-06-22 · **T001 DONE** (commit `9593ce2`, qa.md `## Verdict: PASS`). 다크+네온 RGB 디자인 토큰 확정: `AppColors`(bg/surface/keycap/text + 6색 ledPalette + 스위치 스템색, accentDefault=neonCyan), `AppSpacing`/`AppRadius`, `appTheme()`는 명시적 dark `ColorScheme`(primary=neonCyan, fromSeed 미사용). Planner 직접 확인: `flutter analyze` clean, `flutter test` 16 green, pubspec drift 없음. 신규 패키지 의존성 추가 없음(스코프 준수).
 - 2026-06-22 · **T002 DONE** (commit `52b146d`, qa.md `## Verdict: PASS`). 스위치 카탈로그 `SwitchCatalog`=[blue 청축, brown 갈축, red 적축, black 흑축], stem/LED색은 `AppColors` 참조(하드코딩 없음). `tools/gen_sounds.py`(파이썬 표준 라이브러리만, 결정적)가 8개 WAV(44100Hz mono 16-bit)를 `assets/sounds/`에 생성·번들, pubspec 등록. 35 신규 단위 테스트. Planner 직접 확인: 내가 직접 재생성→black_down.wav SHA-256 바이트 동일(결정적 ✓), pubspec은 assets만 추가(신규 패키지 의존성 0), analyze clean, 51 tests green.
 - 2026-06-22 · **T003 DONE** (commit `4cfc6d0`, qa.md `## Verdict: PASS`). `shared_preferences` 영구 저장 + Riverpod 상태: `SettingsNotifier`(선택 스위치/사운드·햅틱 토글/LedMode/LED색 모두 영구), `StatsNotifier`(누적·최고 영구, 세션·CPM 메모리, trailing-60s CPM, reset). 20 신규 단위 테스트. QA가 "fresh container=재시작" 테스트가 실제로 비영속을 감지함을 falsification-probe로 증명. Planner 직접 확인: 신규 의존성 shared_preferences 1개뿐, analyze clean, 71 tests green.
+- 2026-06-22 · **T005 DONE** (commit `689d017`, qa.md `## Verdict: PASS`). 자기완결 `Keycap` 위젯(AppColors 베벨, 60ms 다운/90ms 스냅업 scale+트래블, ledColor 글로우, 누름마다 자가제거 `LedRipple`, onPressDown/onPressUp 콜백) + 5 위젯 테스트 + 2 골든(미눌림/눌림). QA 어드버서리얼: 눌림상태·리플제거 단정이 no-op이 아님을 증명, 골든은 --update-goldens 없이 일치. Planner 직접 확인: 신규 의존성 0, analyze clean, 78 tests green. (오디오/햅틱/통계/스크린 연결은 T006)
