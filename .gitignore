@@ -50,3 +50,10 @@ docs/tasks/**/.status
 docs/.errors/
 .worktrees/
 .factory/
+
+# Android release signing — NEVER commit keystore or passwords.
+# See https://flutter.dev/to/reference-keystore
+android/key.properties
+android/upload-keystore.jks
+**/*.jks
+**/*.keystore
