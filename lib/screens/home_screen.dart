@@ -7,24 +7,26 @@ import 'package:cliker/theme/app_colors.dart';
 import 'package:cliker/theme/app_spacing.dart';
 import 'package:cliker/widgets/keycap.dart';
 import 'package:cliker/widgets/settings_sheet.dart';
+import 'package:cliker/widgets/stats_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// The single screen of the app: a tappable [Keycap] flanked by a stats readout
+/// The single screen of the app: a tappable [Keycap] flanked by the [StatsPanel]
 /// above and a switch selector below.
 ///
 /// Tapping the keycap plays the selected switch's press/release click, fires a
 /// matching haptic, and registers the click in [statsProvider]. The sound/haptic
 /// toggles in [settingsProvider] are mirrored onto the shared
 /// [ClickSoundPlayer.muted] / [Haptics.enabled] flags so a disabled toggle is a
-/// true no-op at the source. Full settings and stats panels arrive in M2.
+/// true no-op at the source.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
-  /// Keys on the three stat values, so tests can read each independently.
-  static const Key totalStatKey = Key('stat-total');
-  static const Key sessionStatKey = Key('stat-session');
-  static const Key cpmStatKey = Key('stat-cpm');
+  /// Keys on the stat values, re-exported from [StatsPanel] so callers/tests can
+  /// reach them via either type.
+  static const Key totalStatKey = StatsPanel.totalStatKey;
+  static const Key sessionStatKey = StatsPanel.sessionStatKey;
+  static const Key cpmStatKey = StatsPanel.cpmStatKey;
 
   /// Key prefix for switch-selector chips; full key is `Key('switch-chip-<id>')`.
   static Key switchChipKey(String id) => Key('switch-chip-$id');
@@ -35,7 +37,6 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final Settings settings = ref.watch(settingsProvider);
-    final Stats stats = ref.watch(statsProvider);
     final SwitchType selected = SwitchCatalog.byId(settings.selectedSwitchId);
 
     // Mirror the persisted toggles onto the shared services. Reading the
@@ -80,7 +81,7 @@ class HomeScreen extends ConsumerWidget {
                   onPressed: () => SettingsSheet.show(context),
                 ),
               ),
-              _StatsReadout(stats: stats),
+              const StatsPanel(),
               Expanded(
                 child: Center(
                   child: Keycap(
@@ -101,73 +102,6 @@ class HomeScreen extends ConsumerWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// The top readout: lifetime total, this-session count, and current CPM.
-class _StatsReadout extends StatelessWidget {
-  const _StatsReadout({required this.stats});
-
-  final Stats stats;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: <Widget>[
-        _StatTile(
-          valueKey: HomeScreen.totalStatKey,
-          label: '누적',
-          value: '${stats.totalClicks}',
-        ),
-        _StatTile(
-          valueKey: HomeScreen.sessionStatKey,
-          label: '세션',
-          value: '${stats.sessionClicks}',
-        ),
-        _StatTile(
-          valueKey: HomeScreen.cpmStatKey,
-          label: 'CPM',
-          value: '${stats.cpm}',
-        ),
-      ],
-    );
-  }
-}
-
-/// A single labeled stat: large number over a muted caption.
-class _StatTile extends StatelessWidget {
-  const _StatTile({
-    required this.valueKey,
-    required this.label,
-    required this.value,
-  });
-
-  final Key valueKey;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final TextTheme textTheme = Theme.of(context).textTheme;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        Text(
-          value,
-          key: valueKey,
-          style: textTheme.headlineMedium?.copyWith(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          label,
-          style: textTheme.labelMedium?.copyWith(color: AppColors.textMuted),
-        ),
-      ],
     );
   }
 }
