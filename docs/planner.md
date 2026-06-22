@@ -37,7 +37,7 @@ tags: [toybox, project, planner]
 | # | Milestone | Goal | Status |
 |---|-----------|------|--------|
 | M1 | Core clicker MVP | 단일 대형 키캡 탭 → 타건음+진동+LED+카운터가 저지연으로 동작하고 스위치 선택/통계가 영구 저장되는 동작하는 앱 | DONE (T001–T006 VERIFIED, 에뮬레이터 런타임 스모크 통과) |
-| M2 | Polish & customization | LED 효과 모드(리플·RGB 사이클·반응형), 색상 커스터마이즈, 설정 화면, 통계 패널(누적·세션·CPM·최고기록) | TODO |
+| M2 | Polish & customization | LED 효과 모드(리플·RGB 사이클·반응형), 색상 커스터마이즈, 설정 화면, 통계 패널(누적·세션·CPM·최고기록) | DONE (T007,T008 VERIFIED) |
 | M3 | Play Store readiness | 앱 아이콘/이름, app id 확정, 릴리스 서명(keystore), 버전, AAB 빌드, 권한 점검, 스토어 등록 메타데이터·개인정보처리방침 | TODO |
 
 ## Task backlog
@@ -53,7 +53,7 @@ tags: [toybox, project, planner]
 | T005 | Keycap widget + LED ripple/glow effects | M1 | T001 | DONE | qa.md PASS · 689d017 |
 | T006 | Home screen wiring (keycap + audio + haptics + stats + switch selector) | M1 | T003,T004,T005 | DONE | qa.md PASS · 369975e |
 | T007 | Settings & customization (LED modes, color, sound/haptic toggles) | M2 | T006 | DONE | qa.md PASS · cd5b240 |
-| T008 | Stats panel (total · session · CPM · best) + reset | M2 | T006 | TODO | — |
+| T008 | Stats panel (total · session · CPM · best) + reset | M2 | T006 | DONE | qa.md PASS · 616a93e |
 | T009 | App identity: launcher icon + app name + versioning | M3 | T006 | TODO | — |
 | T010 | Release build: signing config + AAB + permissions audit | M3 | T009 | TODO | — |
 | T011 | Store listing metadata + privacy policy | M3 | T010 | TODO | — |
@@ -83,5 +83,6 @@ tags: [toybox, project, planner]
 - 2026-06-22 · **T003 DONE** (commit `4cfc6d0`, qa.md `## Verdict: PASS`). `shared_preferences` 영구 저장 + Riverpod 상태: `SettingsNotifier`(선택 스위치/사운드·햅틱 토글/LedMode/LED색 모두 영구), `StatsNotifier`(누적·최고 영구, 세션·CPM 메모리, trailing-60s CPM, reset). 20 신규 단위 테스트. QA가 "fresh container=재시작" 테스트가 실제로 비영속을 감지함을 falsification-probe로 증명. Planner 직접 확인: 신규 의존성 shared_preferences 1개뿐, analyze clean, 71 tests green.
 - 2026-06-22 · **T005 DONE** (commit `689d017`, qa.md `## Verdict: PASS`). 자기완결 `Keycap` 위젯(AppColors 베벨, 60ms 다운/90ms 스냅업 scale+트래블, ledColor 글로우, 누름마다 자가제거 `LedRipple`, onPressDown/onPressUp 콜백) + 5 위젯 테스트 + 2 골든(미눌림/눌림). QA 어드버서리얼: 눌림상태·리플제거 단정이 no-op이 아님을 증명, 골든은 --update-goldens 없이 일치. Planner 직접 확인: 신규 의존성 0, analyze clean, 78 tests green. (오디오/햅틱/통계/스크린 연결은 T006)
 - 2026-06-22 · **T004 DONE** (commit `8829597`, qa.md `## Verdict: PASS`). 저지연 오디오: `SoundBackend` 추상화 뒤 `AudioPlayersBackend`(audioplayers 6.7.1 `AudioPool`, lowLatency). **soundpool은 빌드 불가로 폐기**(discontinued, 제거된 v1 임베딩) — 플래너 결정으로 audioplayers 교체(errorlog 1strike, 정상 수정). `Haptics`는 strength→light/medium/heavy. 18 테스트(FakeBackend + 플랫폼채널 mock). **`flutter build apk --debug` 성공**(QA가 독립 재빌드 + audioplayers dex 링크 확인). 최초 dev.md 테스트 카운트 오기(19→18)로 1차 FAIL→플래너가 증거에 맞게 정정→QA 재감사 PASS. Planner 직접 확인: soundpool 잔재 0, audioplayers 의존, analyze clean, 96 tests green. (실제 재생/지연 체감은 T006 런타임 스모크)
+- 2026-06-22 · **T008 DONE — M2 완료** (commit `616a93e`, qa.md `## Verdict: PASS`). `StatsPanel`(누적/세션/CPM/최고 4타일, 천단위 포맷)이 M1 간단 리드아웃 대체, 리셋 버튼→확인 다이얼로그→`resetStats()`. 의존성 없는 `thousands()` 헬퍼(intl 미사용). 11 신규 테스트. 기존 stat Key 재사용으로 M1 스모크 유지. QA: cancel/confirm 구분·영구성 검증, 전체 120 tests green 무회귀. Planner 직접 확인: 신규 의존성 0, analyze clean, 120 tests green. **→ M2(폴리시/커스터마이즈) 완료: 설정 시트·LED 모드·통계 패널.**
 - 2026-06-22 · **T007 DONE** (commit `cd5b240`, qa.md `## Verdict: PASS`). 설정 시트(홈 기어버튼): 사운드/햅틱 토글, 6 ledPalette 색 스와치, LED 모드 칩. `Keycap`에 하위호환 `ledMode` prop: solid/ripple + 애니메이션 rgbCycle(HSV hue 회전)·reactive(누름 플레어+감쇠). 9 신규 위젯 테스트(노출된 duration으로 시간의존 모드 테스트 가능화). QA mutation-probe로 LED 테스트가 no-op 아님 확인. Planner 직접 확인: 신규 의존성 0, analyze clean, 109 tests green, M1 루프 유지.
 - 2026-06-22 · **T006 DONE — M1 완료** (commit `369975e`, qa.md `## Verdict: PASS`). 홈 화면 통합: `main.dart`가 SharedPreferences+ClickSoundPlayer를 ProviderScope에 주입, `ClikerApp(appTheme)`, `HomeScreen`=통계 리드아웃(total/session/CPM)+배선된 `Keycap`(누름→사운드+햅틱+통계, 떼면 up음)+스위치 선택기. 카운터 보일러플레이트 제거, integration_test 신규. 100 tests green, **에뮬레이터(emulator-5554)에서 integration 통과 + 런타임 스모크**(5탭→카운터 5, 적축 선택 시 라벨/하이라이트 변경, 세로↔가로 회전에서 상태보존·무크래시, logcat 무결함). **출시 사운드 기본값 ON**(settings_providers.dart:110 `?? true`; integration 테스트의 sound off는 테스트 시드 한정). QA가 자체 런타임 스모크(스크린샷 7장)로 독립 확인. Planner 직접 확인: 신규 의존성 0, sound default ON 소스 확인, analyze clean, 100 tests green. **→ 핵심 루프가 실기기에서 끝까지 동작함이 검증됨.**
