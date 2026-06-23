@@ -12,7 +12,8 @@ cliker는 외부 음원을 받지 않고 이 스크립트로 모든 타건음을
 출력:
     assets/sounds/<id>_down.wav, <id>_up.wav
     (id ∈ {blue, brown, red, black, white, gray, clear, silentRed,
-           silentBlack, speedSilver, darkGray})  → 총 22개 WAV.
+           silentBlack, speedSilver, darkGray, yellow, magnetic})
+    → 총 26개 WAV.
 형식:
     44100 Hz, mono, 16-bit PCM, 60–160 ms.
 
@@ -444,6 +445,60 @@ SWITCH_PARAMS = {
             ],
         },
     },
+    "yellow": {
+        # 황축: 적축류보다 살짝 풀바디·쫀득한 부드러운 리니어. red보다 약간 두꺼운
+        # 중역 모드 + 조금 더 큰 무게, mid 톤 임팩트로 둔하지 않게.
+        "down": {
+            "duration": 0.104,
+            "peak": 0.66,
+            "impacts": [
+                (0.0000, 0.74, 0.0040, "mid"),
+            ],
+            "modes": [
+                (170.0, 0.12, 0.024),
+                (500.0, 0.15, 0.022),
+                (900.0, 0.08, 0.014),
+            ],
+        },
+        "up": {
+            "duration": 0.066,
+            "peak": 0.46,
+            "impacts": [
+                (0.0000, 0.58, 0.0030, "mid"),
+            ],
+            "modes": [
+                (600.0, 0.12, 0.013),
+                (1080.0, 0.06, 0.009),
+            ],
+        },
+    },
+    "magnetic": {
+        # 자석축(무접점 홀이펙트): 아주 매끈하고 조용한 리니어. 어둡고 약한 임팩트 +
+        # 짧게 감쇠하는 차분한 저·중역 모드로 "톡" 거의 없이 부드럽게.
+        "down": {
+            "duration": 0.088,
+            "peak": 0.40,
+            "impacts": [
+                (0.0000, 0.56, 0.0048, "dark"),
+            ],
+            "modes": [
+                (150.0, 0.09, 0.015),
+                (420.0, 0.11, 0.012),
+                (720.0, 0.05, 0.008),
+            ],
+        },
+        "up": {
+            "duration": 0.054,
+            "peak": 0.28,
+            "impacts": [
+                (0.0000, 0.44, 0.0036, "dark"),
+            ],
+            "modes": [
+                (520.0, 0.08, 0.008),
+                (920.0, 0.04, 0.006),
+            ],
+        },
+    },
 }
 
 # 생성 순서: 카탈로그와 동일, 각 스위치는 down→up. 결정성을 위해 고정이다.
@@ -459,6 +514,8 @@ SWITCH_ORDER = [
     "silentBlack",
     "speedSilver",
     "darkGray",
+    "yellow",
+    "magnetic",
 ]
 PHASE_ORDER = ["down", "up"]
 

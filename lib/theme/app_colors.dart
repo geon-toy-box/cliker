@@ -46,6 +46,8 @@ abstract final class AppColors {
   static const Color switchSilentBlack = Color(0xFF374151);
   static const Color switchSpeedSilver = Color(0xFFC0C7D0);
   static const Color switchDarkGray = Color(0xFF4B5563);
+  static const Color switchYellow = Color(0xFFFACC15);
+  static const Color switchMagnetic = Color(0xFF2DD4BF);
 
   /// Default LED accent color.
   static const Color accentDefault = neonCyan;

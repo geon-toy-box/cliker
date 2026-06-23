@@ -50,6 +50,11 @@ void main() {
       expect(AppColors.switchDarkGray.toARGB32(), 0xFF4B5563);
     });
 
+    test('new switch-stem tokens (T014)', () {
+      expect(AppColors.switchYellow.toARGB32(), 0xFFFACC15);
+      expect(AppColors.switchMagnetic.toARGB32(), 0xFF2DD4BF);
+    });
+
     test('accentDefault is neonCyan', () {
       expect(AppColors.accentDefault.toARGB32(), 0xFF00E5FF);
       expect(AppColors.accentDefault, same(AppColors.neonCyan));

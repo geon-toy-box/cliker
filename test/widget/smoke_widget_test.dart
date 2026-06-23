@@ -132,7 +132,7 @@ void main() {
 
         // AC1: the switch chips are NOT inline on home anymore — none present
         // until the menu is opened.
-        expect(SwitchCatalog.all, hasLength(11));
+        expect(SwitchCatalog.all, hasLength(13));
         for (final SwitchType s in SwitchCatalog.all) {
           expect(
             find.byKey(HomeScreen.switchChipKey(s.id)),
@@ -141,7 +141,7 @@ void main() {
           );
         }
 
-        // AC1: tapping the switch-menu button reveals all eleven chips.
+        // AC1: tapping the switch-menu button reveals all thirteen chips.
         await tester.tap(find.byKey(HomeScreen.switchMenuButtonKey));
         await tester.pumpAndSettle();
         for (final SwitchType s in SwitchCatalog.all) {

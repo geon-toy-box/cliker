@@ -7,8 +7,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// The switch-selection menu, shown as a glassy modal bottom sheet.
 ///
-/// Lists every catalog switch as a row carrying a stem-color preview dot, the
-/// Korean name, and the actuation kind · force. Tapping a row selects that
+/// Lists every catalog switch as an info-rich row carrying a stem-color preview
+/// dot, the Korean name + English name, a meta line (actuation kind · force ·
+/// a loudness bar), the one-line feel ([SwitchType.description]), and the
+/// recommended use ([SwitchType.recommendedFor]). Tapping a row selects that
 /// switch via [SettingsNotifier.selectSwitch] and closes the sheet; the home
 /// keycap then updates its stem color and label.
 ///
@@ -105,7 +107,7 @@ class SwitchMenu extends ConsumerWidget {
               ),
             ),
             // A SingleChildScrollView + Column (rather than a lazy ListView)
-            // keeps every row in the tree at once, so all eleven switch chips
+            // keeps every row in the tree at once, so all thirteen switch chips
             // are present and reachable even while some are scrolled off-screen.
             Flexible(
               child: SingleChildScrollView(
@@ -147,8 +149,16 @@ class SwitchMenu extends ConsumerWidget {
   }
 }
 
-/// One selectable switch row: a stem-color dot, the Korean name + English name,
-/// and the kind · force. The selected row is tinted/ringed in the stem color.
+/// One selectable switch row. Shows, top to bottom:
+///
+/// - a stem-color dot + `nameKo (nameEn)` heading (with the check on the
+///   selected row),
+/// - a meta line: `kindLabel · forceCn cN` followed by a 5-segment
+///   loudness bar,
+/// - the one-line feel ([SwitchType.description]),
+/// - the recommended use, prefixed `추천: ` ([SwitchType.recommendedFor]).
+///
+/// The selected row is tinted/ringed in the stem color.
 class _SwitchRow extends StatelessWidget {
   const _SwitchRow({
     required this.switchType,
@@ -188,21 +198,26 @@ class _SwitchRow extends StatelessWidget {
           ),
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            // Stem-color preview dot with a soft glow.
-            Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                color: switchType.stemColor,
-                shape: BoxShape.circle,
-                boxShadow: <BoxShadow>[
-                  BoxShadow(
-                    color: switchType.stemColor.withValues(alpha: 0.6),
-                    blurRadius: 10,
-                    spreadRadius: 1,
-                  ),
-                ],
+            // Stem-color preview dot with a soft glow. Nudged down so it aligns
+            // with the heading row rather than the multi-line block's center.
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: switchType.stemColor,
+                  shape: BoxShape.circle,
+                  boxShadow: <BoxShadow>[
+                    BoxShadow(
+                      color: switchType.stemColor.withValues(alpha: 0.6),
+                      blurRadius: 10,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(width: AppSpacing.md),
@@ -211,27 +226,109 @@ class _SwitchRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
+                  // Heading: nameKo (nameEn), with the check on the selected row.
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          '${switchType.nameKo} (${switchType.nameEn})',
+                          style: textTheme.titleMedium?.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: selected
+                                ? FontWeight.w800
+                                : FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      if (selected)
+                        Icon(
+                          Icons.check_rounded,
+                          color: switchType.stemColor,
+                          size: 22,
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  // Meta line: kind · force, then the loudness bar.
+                  Row(
+                    children: <Widget>[
+                      Flexible(
+                        child: Text(
+                          '$kindLabel · ${switchType.forceCn}cN',
+                          overflow: TextOverflow.ellipsis,
+                          style: textTheme.labelMedium?.copyWith(
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      _LoudnessBar(loudness: switchType.loudness),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  // Feel (느낌) one-liner.
                   Text(
-                    switchType.nameKo,
-                    style: textTheme.titleMedium?.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                    switchType.description,
+                    style: textTheme.bodySmall?.copyWith(
+                      color: AppColors.textPrimary.withValues(alpha: 0.82),
                     ),
                   ),
+                  const SizedBox(height: 2),
+                  // Recommended use.
                   Text(
-                    '$kindLabel · ${switchType.forceCn}cN · ${switchType.nameEn}',
-                    style: textTheme.labelMedium?.copyWith(
+                    '추천: ${switchType.recommendedFor}',
+                    style: textTheme.labelSmall?.copyWith(
                       color: AppColors.textMuted,
                     ),
                   ),
                 ],
               ),
             ),
-            if (selected)
-              Icon(Icons.check_rounded, color: switchType.stemColor, size: 22),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// A compact 5-segment "소리세기" (loudness) indicator. The first [loudness]
+/// segments are lit in [AppColors.neonYellow]; the rest are dim. A leading mute
+/// icon labels the bar so it reads as a sound-level meter.
+class _LoudnessBar extends StatelessWidget {
+  const _LoudnessBar({required this.loudness});
+
+  /// Loudness on a 1–5 scale; clamped before rendering.
+  final int loudness;
+
+  /// Number of segments in the bar (the loudness scale max).
+  static const int segments = 5;
+
+  @override
+  Widget build(BuildContext context) {
+    final int lit = loudness.clamp(0, segments);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        const Icon(
+          Icons.volume_up_rounded,
+          size: 14,
+          color: AppColors.textMuted,
+        ),
+        const SizedBox(width: 4),
+        for (int i = 0; i < segments; i++) ...<Widget>[
+          if (i > 0) const SizedBox(width: 2),
+          Container(
+            width: 4,
+            height: 9,
+            decoration: BoxDecoration(
+              color: i < lit
+                  ? AppColors.neonYellow
+                  : AppColors.textMuted.withValues(alpha: 0.25),
+              borderRadius: BorderRadius.circular(1),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
