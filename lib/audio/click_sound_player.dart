@@ -34,6 +34,25 @@ class AudioPlayersBackend implements SoundBackend {
   final int _maxPlayers;
   final List<AudioPool> _pools = <AudioPool>[];
 
+  /// Audio attributes for short UI click sounds.
+  ///
+  /// The critical setting is [AndroidAudioFocus.none]: a fidget clicker fires
+  /// many tiny overlapping clips, and requesting media audio focus per play made
+  /// each player immediately steal focus from the previous one
+  /// (`onAudioFocusChange(-1)`), cutting every ~100ms click off so nothing was
+  /// audible. With no focus request the clips overlap freely and the user's
+  /// background music is left untouched. Sonification content/usage marks these
+  /// as UI sound effects rather than media.
+  static final AudioContext _sfxContext = AudioContext(
+    android: const AudioContextAndroid(
+      isSpeakerphoneOn: false,
+      stayAwake: false,
+      contentType: AndroidContentType.sonification,
+      usageType: AndroidUsageType.assistanceSonification,
+      audioFocus: AndroidAudioFocus.none,
+    ),
+  );
+
   @override
   Future<int> load(String asset) async {
     // AssetSource auto-prefixes "assets/", so strip a leading "assets/" from
@@ -41,9 +60,11 @@ class AudioPlayersBackend implements SoundBackend {
     final String path = asset.startsWith('assets/')
         ? asset.substring('assets/'.length)
         : asset;
-    final AudioPool pool = await AudioPool.createFromAsset(
-      path: path,
+    // Use create() (not createFromAsset) because only it forwards audioContext.
+    final AudioPool pool = await AudioPool.create(
+      source: AssetSource(path),
       maxPlayers: _maxPlayers,
+      audioContext: _sfxContext,
       playerMode: PlayerMode.lowLatency,
     );
     _pools.add(pool);
