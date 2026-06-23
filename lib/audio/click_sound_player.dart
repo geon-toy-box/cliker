@@ -61,11 +61,17 @@ class AudioPlayersBackend implements SoundBackend {
         ? asset.substring('assets/'.length)
         : asset;
     // Use create() (not createFromAsset) because only it forwards audioContext.
+    // PlayerMode.mediaPlayer (not lowLatency): lowLatency requests an Android
+    // FAST audio track that many devices/emulators reject (AudioFlinger
+    // "mismatch between requested flags (0x4) and output flags (0x2)"),
+    // producing no audible output. mediaPlayer uses a normal track that plays
+    // reliably; sources are preloaded so per-tap latency stays low enough for a
+    // clicker.
     final AudioPool pool = await AudioPool.create(
       source: AssetSource(path),
       maxPlayers: _maxPlayers,
       audioContext: _sfxContext,
-      playerMode: PlayerMode.lowLatency,
+      playerMode: PlayerMode.mediaPlayer,
     );
     _pools.add(pool);
     return _pools.length - 1;
