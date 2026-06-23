@@ -40,7 +40,7 @@ tags: [toybox, project, planner]
 | M2 | Polish & customization | LED 효과 모드(리플·RGB 사이클·반응형), 색상 커스터마이즈, 설정 화면, 통계 패널(누적·세션·CPM·최고기록) | DONE (T007,T008 VERIFIED) |
 | M3 | Play Store readiness | 앱 아이콘/이름, app id 확정, 릴리스 서명(keystore), 버전, AAB 빌드, 권한 점검, 스토어 등록 메타데이터·개인정보처리방침 | DONE (T009,T010,T011 VERIFIED) |
 | M4 | 스위치 11종 확장 + UI 개편 | 체리 MX 11종, 통계 2개(전체·RPM), 진짜 키캡 모양+확실한 눌림, 11종 가로 스크롤 선택기 | DONE (T012 VERIFIED) |
-| M5 | MZ 비주얼 리디자인 | 축 선택 메뉴화, LED RGB 휠, MZ(홀로그래픽/글로시) 스타일, 중앙=실사 스위치+키캡 | TODO |
+| M5 | MZ 비주얼 리디자인 + 스위치 13종 | 축 선택 메뉴화, LED RGB 휠, MZ(홀로그래픽/글로시), 실사 스위치+키캡, 스위치 13종(+황축·자석축) + 정보 메뉴 | DONE (T013,T014 VERIFIED) |
 
 ## Task backlog
 > Statuses: TODO · IN_PROGRESS · BLOCKED · NEEDS_FIX · VERIFIED · DONE
@@ -61,7 +61,7 @@ tags: [toybox, project, planner]
 | T011 | Store listing metadata + privacy policy | M3 | T010 | DONE | qa.md PASS · 20d13b7 |
 | T012 | 스위치 11종 확장 + UI 개편(키캡·통계 2개·선택기) | M4 | — | DONE | qa.md PASS · 22a1fbe |
 | T013 | MZ 리디자인: 실사 스위치+키캡 / RGB 휠 / 축 메뉴 | M5 | T012 | DONE | qa.md PASS · 50887b0 |
-| T014 | 스위치 13종 + 메뉴 정보 풍부화(느낌·소리·추천용도) | M5 | T013 | TODO | — |
+| T014 | 스위치 13종 + 메뉴 정보 풍부화(느낌·소리·추천용도) | M5 | T013 | DONE | qa.md PASS · dfefffe |
 
 ## Decisions log
 <!-- Architecture/product decisions, dated, with the reasoning. Prevents re-litigating. -->
@@ -89,6 +89,7 @@ tags: [toybox, project, planner]
 - 2026-06-22 · **T003 DONE** (commit `4cfc6d0`, qa.md `## Verdict: PASS`). `shared_preferences` 영구 저장 + Riverpod 상태: `SettingsNotifier`(선택 스위치/사운드·햅틱 토글/LedMode/LED색 모두 영구), `StatsNotifier`(누적·최고 영구, 세션·CPM 메모리, trailing-60s CPM, reset). 20 신규 단위 테스트. QA가 "fresh container=재시작" 테스트가 실제로 비영속을 감지함을 falsification-probe로 증명. Planner 직접 확인: 신규 의존성 shared_preferences 1개뿐, analyze clean, 71 tests green.
 - 2026-06-22 · **T005 DONE** (commit `689d017`, qa.md `## Verdict: PASS`). 자기완결 `Keycap` 위젯(AppColors 베벨, 60ms 다운/90ms 스냅업 scale+트래블, ledColor 글로우, 누름마다 자가제거 `LedRipple`, onPressDown/onPressUp 콜백) + 5 위젯 테스트 + 2 골든(미눌림/눌림). QA 어드버서리얼: 눌림상태·리플제거 단정이 no-op이 아님을 증명, 골든은 --update-goldens 없이 일치. Planner 직접 확인: 신규 의존성 0, analyze clean, 78 tests green. (오디오/햅틱/통계/스크린 연결은 T006)
 - 2026-06-22 · **T004 DONE** (commit `8829597`, qa.md `## Verdict: PASS`). 저지연 오디오: `SoundBackend` 추상화 뒤 `AudioPlayersBackend`(audioplayers 6.7.1 `AudioPool`, lowLatency). **soundpool은 빌드 불가로 폐기**(discontinued, 제거된 v1 임베딩) — 플래너 결정으로 audioplayers 교체(errorlog 1strike, 정상 수정). `Haptics`는 strength→light/medium/heavy. 18 테스트(FakeBackend + 플랫폼채널 mock). **`flutter build apk --debug` 성공**(QA가 독립 재빌드 + audioplayers dex 링크 확인). 최초 dev.md 테스트 카운트 오기(19→18)로 1차 FAIL→플래너가 증거에 맞게 정정→QA 재감사 PASS. Planner 직접 확인: soundpool 잔재 0, audioplayers 의존, analyze clean, 96 tests green. (실제 재생/지연 체감은 T006 런타임 스모크)
+- 2026-06-23 · **T014 DONE — M5 완료** (commit `dfefffe`, qa.md `## Verdict: PASS`). 스위치 **13종**(체리 MX 11 + 황축 + 자석축). 기존 11종은 description(느낌)만 정리, 핵심 필드 불변. `SwitchType`에 recommendedFor·loudness(1~5) 추가. `switchYellow #FACC15`/`switchMagnetic #2DD4BF`. gen_sounds 26개 결정적 WAV. 축 메뉴 각 행에 종류·작동압·소리세기 바·느낌·추천용도 표시(자석축="무접점 홀이펙트·래피드 트리거"/"e스포츠"). 207 tests green, analyze clean, APK 빌드, 신규 의존성 0. QA가 26 WAV 결정성·13종 row-for-row·메뉴 정보 독립 확인. Planner 직접 확인: 26 WAV, 색 정확, 신규 의존성 0, analyze clean, 207 tests.
 - 2026-06-23 · **T013 DONE** (commit `50887b0`, qa.md `## Verdict: PASS`). MZ 비주얼 리디자인: 홀로그래픽 워드마크 + 거대 홀로그래픽 클릭 카운트 히어로 + RPM pill, AppColors holo* 토큰. `RgbWheel`(자체 CustomPaint conic hue wheel, 외부 패키지 0) → LED 색 실시간 선택·영구. `Keycap`을 **실사 스위치+키캡**으로(stemColor 스템 + 체리MX 하우징 + 글로시 캡, ~18px 눌림). 축 선택을 **글래스 바텀시트 메뉴**로 이동(상시 칩 행 제거). 186 tests green, 골든 재생성·클린, analyze clean, APK 빌드(com.geontoybox.cliker). QA가 독립 재현 + aapt 패키지 확인 + secondsyndrome 0 확인. Planner 직접 확인: 신규 의존성 0, mediaPlayer 유지. + **패키지 리네임**(secondsyndrome→geontoybox, commit `72fb06f`)도 이 빌드로 검증됨.
 - 2026-06-23 · **T012 DONE — M4 완료** (commit `22a1fbe`, qa.md `## Verdict: PASS`). 체리 MX **11종**(blue/brown/red/black/white/gray/clear/silentRed/silentBlack/speedSilver/darkGray) + `SwitchKind`/`forceCn`, 7개 신규 스템색. gen_sounds 확장 → **22개 결정적 WAV**. 통계 **2개만**(전체 클릭수 + RPM) + 리셋. 키캡 **3D 스컬프처(디시드 top + 스커트)** + **눈에 띄는 ~18px 눌림**. 선택기 **11종 가로 스크롤**. 테스트 갱신 171 green, analyze clean, APK 빌드. QA가 자체 런타임 스모크 + 결정성 + 골든 클린 확인. Planner 직접 확인: 22 WAV, stats 키 2개(old 키 제거), 신규 의존성 0, mediaPlayer 유지, analyze clean, 171 tests. **키캡 비주얼/눌림감은 웹에서 사용자와 시각 튜닝 예정**(frontend-design 활용).
 - 2026-06-23 · **버그픽스(출시 후) — 클릭 시 무음** (2단계). ① `5322e97`: 오디오 포커스 쟁탈 제거(`AndroidAudioFocus.none` + sonification) — 포커스 요청 0 확인했으나 사용자 여전히 무음. ② `605ee77`: 진짜 원인은 `PlayerMode.lowLatency`가 Android FAST 트랙을 요청 → 에뮬레이터/일부 기기가 거부(`AudioFlinger mismatch flags 0x4 vs 0x2`) → 무출력. **`PlayerMode.mediaPlayer`로 전환**(소스 preload라 클릭 지연 허용). **객관 증명**: logcat의 `AudioTrack: stop() called with N frames delivered` — 4851프레임(110ms=blue_down)/3308프레임(75ms=blue_up)이 스피커 sink로 실제 전달됨(WAV 길이와 정확히 일치), FAST mismatch 사라짐. analyze clean, 127 tests green. **가청 최종 확인은 사용자(이상적으론 실기기)**; 확인되면 릴리스 AAB 재빌드.
