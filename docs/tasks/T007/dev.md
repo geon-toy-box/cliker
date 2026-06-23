@@ -72,7 +72,7 @@ files below are untracked — see Self-audit for the full reconciliation.)
   EXIT_CODE=0; artifact `app-debug.apk` 189299825 bytes (`ls -l`).
 - Integration: N/A per task.md (single-screen interaction; end-to-end is T006).
 - Runtime smoke: evidence/dev/smoke/ on `emulator-5554` (API 35), package
-  `com.secondsyndrome.cliker`:
+  `com.geontoybox.cliker`:
   - 01-home.png — cold launch, gear visible top-right, cyan keycap glow.
   - 02-settings-open.png — sheet open: 설정 title, sound/haptic toggles ON, six
     swatches (cyan ringed), four mode chips (리플 selected).

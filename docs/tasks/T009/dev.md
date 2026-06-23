@@ -44,7 +44,7 @@ New (untracked):
 - Launcher-icons gen: evidence/dev/launcher-icons-gen.txt — "✓ Successfully generated launcher icons" EXIT_CODE=0 (`dart run flutter_launcher_icons`).
 - Icon resources (AC2): evidence/dev/icon-resources.txt — new mipmap hashes differ from recorded baseline defaults; adaptive xml + 5 foreground bitmaps listed present.
 - Build (AC5):   evidence/dev/build.txt — "✓ Built build/app/outputs/flutter-apk/app-debug.apk" EXIT_CODE=0; artifact app-debug.apk = 189300379 bytes.
-- APK badging (AC1/AC2/AC4): evidence/dev/apk-badging.txt — `package name='com.secondsyndrome.cliker' versionCode='1' versionName='1.0.0'`; `application: label='클리커' icon='res/mipmap-anydpi-v26/ic_launcher.xml'`.
+- APK badging (AC1/AC2/AC4): evidence/dev/apk-badging.txt — `package name='com.geontoybox.cliker' versionCode='1' versionName='1.0.0'`; `application: label='클리커' icon='res/mipmap-anydpi-v26/ic_launcher.xml'`.
 - Install:    evidence/dev/install.txt — "Success" EXIT_CODE=0 (`adb -s emulator-5554 install -r`).
 - Runtime smoke (AC1/AC2/AC5):
   - evidence/dev/smoke/app-running.png — app launches; HomeScreen renders (stats panel + neon "Blue" keycap + switch selector).

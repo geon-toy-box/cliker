@@ -83,7 +83,7 @@ bearing on any AC. One cosmetic imprecision noted (C18: dev.md says the
   distribution countries, feature graphic. Mapping table at §"자료 매핑 요약".
   User-only steps clearly flagged 🧑: Play account/app creation (A), AAB upload
   (B), privacy URL hosting (E), feature graphic ("미준비 — 사용자가 제작 필요", D).
-  File:line refs verified: build.gradle.kts:38 = com.secondsyndrome.cliker,
+  File:line refs verified: build.gradle.kts:38 = com.geontoybox.cliker,
   pubspec.yaml:19 = 1.0.0+1 — evidence/qa/ac5-checklist-refs.txt.
 
 - AC6 — app code/tests unchanged, no regression → MET.

@@ -60,12 +60,12 @@ release variant was smoke-tested on a device (the substantive verification here)
     EXIT_CODE=0, "Built …/app-release.aab (41.5MB)".
   - `evidence/dev/aab-artifact.txt` — `ls -l` → 41,491,782 bytes on disk.
   - `evidence/dev/aab-signature-verify.txt` — `jarsigner -verify` prints
-    "jar verified."; unique signer DN = `CN=cliker, O=secondsyndrome, C=KR`.
+    "jar verified."; unique signer DN = `CN=cliker, O=geontoybox, C=KR`.
     (jarsigner's non-zero exit is from benign warnings — self-signed cert / no
     timestamp / Jar inconsistencies, all normal for a v1-signed AAB that Play
     re-signs; the verdict line is "jar verified.")
   - `evidence/dev/apk-signature-verify.txt` — DEFINITIVE: `apksigner verify
-    --print-certs` EXIT_CODE=0, signer DN `CN=cliker, O=secondsyndrome, C=KR`,
+    --print-certs` EXIT_CODE=0, signer DN `CN=cliker, O=geontoybox, C=KR`,
     cert SHA-256 `65aa2ca0…49495e` which **exactly matches** the upload
     keystore fingerprint `65:AA:2C:A0:…:49:5E` (`evidence/dev/keystore-list.txt`).
 - **AC4 (permission audit — no unnecessary permissions):**
@@ -73,7 +73,7 @@ release variant was smoke-tested on a device (the substantive verification here)
     cross-check of the merged release manifest
     (`build/app/intermediates/merged_manifest/release/.../AndroidManifest.xml`).
     The release manifest declares exactly ONE permission:
-    `com.secondsyndrome.cliker.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`
+    `com.geontoybox.cliker.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`
     (auto-generated, signature-level, app-private — added by androidx.core to
     guard non-exported dynamic BroadcastReceivers on API 34+; not user-facing,
     no consent). **No `android.permission.INTERNET`** and no network/dangerous

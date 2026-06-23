@@ -1,7 +1,7 @@
 ---
 project: cliker
 package: cliker
-org: com.secondsyndrome
+org: com.geontoybox
 created: 2026-06-22
 tags: [toybox, project, index]
 ---
@@ -20,7 +20,7 @@ LED 키보드 스트레스 해소 클릭커 키캡 앱 — 화면 속 기계식 
 - Tasks: `docs/tasks/<id>/` — each has `task.md`, `dev.md`, `qa.md`, `evidence/`
 
 ## Stack
-- Flutter (Android-only) · Riverpod · package `cliker` · org `com.secondsyndrome`
+- Flutter (Android-only) · Riverpod · package `cliker` · org `com.geontoybox`
 
 ## Status
 See [[planner#Task backlog]]. Nothing here is "done" without a QA `VERIFIED`

@@ -26,7 +26,7 @@ then restored `keycap.dart` to its original sha
 - Integration: N/A per task.md line 49 (single-screen interaction; end-to-end is T006).
 - Build:       evidence/qa/build.txt — `✓ Built build/app/outputs/flutter-apk/app-debug.apk`,
   EXIT_CODE=0; artifact on disk: `app-debug.apk` 189299825 bytes (181 MB).
-- Smoke:       evidence/qa/smoke/ on emulator-5554 (API 35), pkg com.secondsyndrome.cliker.
+- Smoke:       evidence/qa/smoke/ on emulator-5554 (API 35), pkg com.geontoybox.cliker.
   logcat scan: NO FATAL/AndroidRuntime/E flutter/crash lines; process pid 7191 alive.
 
 ## Document audit

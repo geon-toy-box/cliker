@@ -58,7 +58,7 @@ One immaterial nit: dev cited `dart_test.yaml:6` for the icon-gen tag; actual ad
   (+127) — all green, EXIT_CODE=0.
 
 ## Scope conformance (out-of-scope guards)
-- applicationId / namespace / Kotlin package = `com.secondsyndrome.cliker` UNCHANGED — not present in
+- applicationId / namespace / Kotlin package = `com.geontoybox.cliker` UNCHANGED — not present in
   `git diff` (verified). build.gradle.kts:9/24 + MainActivity.kt:1 read the unchanged id.
 - `flutter_launcher_icons` is a DEV dependency only (pubspec.lock `dependency: "direct dev"`); the
   runtime `dependencies:` block is unchanged in the diff — no new runtime dependency.

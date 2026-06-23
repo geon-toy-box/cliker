@@ -1,7 +1,7 @@
 ---
 project: cliker
 package: cliker
-org: com.secondsyndrome
+org: com.geontoybox
 created: 2026-06-22
 status: shippable
 tags: [toybox, project, planner]
@@ -71,9 +71,10 @@ tags: [toybox, project, planner]
 - 2026-06-22: 사운드 = 라이선스 리스크 회피 위해 **합성(synthesized) WAV**를 커밋된 파이썬 스크립트로 생성·번들. 외부 다운로드/저작권 자산 미사용.
 - 2026-06-22: 저지연 연타 위해 오디오는 ~~soundpool~~ → **audioplayers**(`AudioPool`, low-latency)로 변경. 이유(T004 BLOCKED): soundpool 2.4.1(최신·discontinued)이 제거된 v1 Flutter Android 임베딩(`PluginRegistry.Registrar`)을 써서 Flutter 3.41.7에서 `:soundpool:compileDebugKotlin` 컴파일 실패, 더 올릴 버전도 없음. Dart는 `SoundBackend`로 플러그인을 격리해둬서 백엔드 구현(SoundpoolBackend→AudioPlayersBackend)과 프로바이더 배선만 교체, 인터페이스·테스트 불변. 탭다운=down음, 탭업=up음 유지.
 - 2026-06-22: 설정/통계 영구 저장 = **shared_preferences**(단순 key-value). devlingo는 hive를 썼으나 여기선 카운터·토글 위주라 더 가벼운 선택.
-- 2026-06-22: app id = `com.secondsyndrome.cliker` (이메일 도메인 2ndsyndrome.com 기반; 'com.2ndsyndrome'은 세그먼트가 숫자로 시작해 Android 규칙 위반이라 secondsyndrome로 변환). 퍼블리시 전 사용자 확정 필요.
+- 2026-06-22: app id = `com.geontoybox.cliker` (이메일 도메인 2ndsyndrome.com 기반; 'com.2ndsyndrome'은 세그먼트가 숫자로 시작해 Android 규칙 위반이라 geontoybox로 변환). 퍼블리시 전 사용자 확정 필요.
 - 2026-06-22: 디자인 = 다크 + 네온 RGB 게이밍 무드(키보드 LED 감성). 라이트 테마 없음(v1).
-- 2026-06-22 (사용자 확정): **앱 표시 이름 = "클리커"**(한글; 런처 라벨 + 스토어 제목). app id = **com.secondsyndrome.cliker** 확정(출시 후 영구). 릴리스 서명 **keystore는 플래너가 생성**(업로드 키, key.properties는 gitignore) — 사용자가 keystore 파일+비밀번호를 안전 백업해야 하며, Play 앱 서명 사용 시 업로드 키 분실은 재설정 가능. 실제 Play 업로드는 사용자가 자기 계정으로 수행(플래너는 업로드까지 하지 않음, AAB+메타데이터까지 준비).
+- 2026-06-23 (사용자 변경): **app id를 이전 값에서 `com.geontoybox.cliker`로 변경**(브랜드 = geon toybox; 하이픈 'geon-toy-box'은 패키지 세그먼트에 불가라 `geontoybox`로). 모든 텍스트 참조·`MainActivity` 패키지 경로 일괄 갱신. 기존 keystore 바이너리 cert의 조직(O) 필드만 구값 유지(비표시·Play 무관; 원하면 재생성). 미출시라 변경 안전.
+- 2026-06-22 (사용자 확정): **앱 표시 이름 = "클리커"**(한글; 런처 라벨 + 스토어 제목). app id = **com.geontoybox.cliker** 확정(출시 후 영구). 릴리스 서명 **keystore는 플래너가 생성**(업로드 키, key.properties는 gitignore) — 사용자가 keystore 파일+비밀번호를 안전 백업해야 하며, Play 앱 서명 사용 시 업로드 키 분실은 재설정 가능. 실제 Play 업로드는 사용자가 자기 계정으로 수행(플래너는 업로드까지 하지 않음, AAB+메타데이터까지 준비).
 
 ## Open questions (for the user)
 <!-- Things the Planner needs the user to decide. Resolve via tiki-taka, then move to Decisions. -->

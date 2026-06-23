@@ -61,9 +61,9 @@ ac4-dump-component.txt).
 - **AC3** (signed AAB produced; signer = upload key) → **met**.
   - AAB built (EXIT_CODE=0) and on disk at 41,491,782 B (build-aab.txt, aab-artifact.txt).
   - `jarsigner -verify` on the AAB: "jar verified.", signer DN
-    `CN=cliker, O=secondsyndrome, C=KR` (evidence/qa/aab-signature-jarsigner.txt).
+    `CN=cliker, O=geontoybox, C=KR` (evidence/qa/aab-signature-jarsigner.txt).
   - DEFINITIVE: `apksigner verify --print-certs` on the release APK (EXIT_CODE=0, v2
-    scheme) → DN `CN=cliker, O=secondsyndrome, C=KR`, cert SHA-256
+    scheme) → DN `CN=cliker, O=geontoybox, C=KR`, cert SHA-256
     `65aa2ca0…49495e` (evidence/qa/apk-signature-apksigner.txt), which **exactly
     matches** the upload keystore fingerprint in evidence/qa/keystore-fingerprint.txt
     and is **different** from the Android debug key (evidence/qa/ac3-fingerprint-crosscheck.txt).
@@ -71,7 +71,7 @@ ac4-dump-component.txt).
 - **AC4** (permission audit; no unnecessary/dangerous permissions) → **met**.
   - `aapt dump permissions` on the release APK: the sole requested permission is the
     auto-generated, signature-level, app-private
-    `com.secondsyndrome.cliker.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`;
+    `com.geontoybox.cliker.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`;
     **`android.permission.INTERNET` ABSENT**; no network/dangerous permission
     (evidence/qa/ac4-permissions-apk.txt).
   - Merged release manifest cross-check: INTERNET count=0

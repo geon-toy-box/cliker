@@ -12,7 +12,7 @@ tags: [toybox, task]
 ## Context
 Play 업로드 준비의 첫걸음 — 앱이 런처/스토어에서 "클리커"로 보이고, 기본 Flutter
 아이콘이 아닌 cliker 정체성(다크 + 네온 RGB 키캡)의 런처 아이콘을 갖게 한다.
-사용자 확정: 표시 이름 = **클리커**, app id = com.secondsyndrome.cliker(불변).
+사용자 확정: 표시 이름 = **클리커**, app id = com.geontoybox.cliker(불변).
 
 ## Scope — what to build
 - 앱 표시 이름 = **"클리커"**: `android/app/src/main/AndroidManifest.xml`의 `android:label`을 "클리커"로.

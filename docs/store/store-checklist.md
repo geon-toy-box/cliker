@@ -7,7 +7,7 @@
 
 앱 기본 정보 (참고):
 - 표시명: **클리커** (영문 부제 cliker)
-- 패키지(앱 ID): **com.secondsyndrome.cliker** (android/app/build.gradle.kts:38)
+- 패키지(앱 ID): **com.geontoybox.cliker** (android/app/build.gradle.kts:38)
 - 버전: **1.0.0 (+1)** → versionName 1.0.0 / versionCode 1 (pubspec.yaml:19)
 - 성격: 완전 오프라인 · 개인정보 무수집 · 광고/분석 없음
 
