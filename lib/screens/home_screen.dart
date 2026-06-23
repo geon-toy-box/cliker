@@ -25,8 +25,7 @@ class HomeScreen extends ConsumerWidget {
   /// Keys on the stat values, re-exported from [StatsPanel] so callers/tests can
   /// reach them via either type.
   static const Key totalStatKey = StatsPanel.totalStatKey;
-  static const Key sessionStatKey = StatsPanel.sessionStatKey;
-  static const Key cpmStatKey = StatsPanel.cpmStatKey;
+  static const Key rpmStatKey = StatsPanel.rpmStatKey;
 
   /// Key prefix for switch-selector chips; full key is `Key('switch-chip-<id>')`.
   static Key switchChipKey(String id) => Key('switch-chip-$id');
@@ -106,7 +105,8 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-/// The bottom row of switch chips. The selected chip is highlighted with the
+/// The bottom switch selector: all eleven catalog switches as chips in a single
+/// horizontally-scrollable row. The selected chip is highlighted with the
 /// switch's stem color; tapping another chip reports it via [onSelect].
 class _SwitchSelector extends StatelessWidget {
   const _SwitchSelector({required this.selectedId, required this.onSelect});
@@ -116,22 +116,32 @@ class _SwitchSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: <Widget>[
-        for (final SwitchType switchType in SwitchCatalog.all)
-          _SwitchChip(
-            switchType: switchType,
-            selected: switchType.id == selectedId,
-            onTap: () => onSelect(switchType.id),
-          ),
-      ],
+    // A SingleChildScrollView + Row (rather than a lazy ListView) keeps every
+    // chip in the tree at once, so all eleven are present and reachable even
+    // while some are scrolled off-screen; the row still scrolls horizontally.
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      child: Row(
+        children: <Widget>[
+          for (int i = 0; i < SwitchCatalog.all.length; i++) ...<Widget>[
+            if (i > 0) const SizedBox(width: AppSpacing.sm),
+            _SwitchChip(
+              switchType: SwitchCatalog.all[i],
+              selected: SwitchCatalog.all[i].id == selectedId,
+              onTap: () => onSelect(SwitchCatalog.all[i].id),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
 
 /// One selectable switch chip: a stem-color dot above the Korean name, in a
-/// pill that lights up in the stem color when selected.
+/// pill that lights up in the stem color when selected. When selected it also
+/// shows the actuation force/kind beneath the name.
 class _SwitchChip extends StatelessWidget {
   const _SwitchChip({
     required this.switchType,
@@ -142,6 +152,13 @@ class _SwitchChip extends StatelessWidget {
   final SwitchType switchType;
   final bool selected;
   final VoidCallback onTap;
+
+  /// Short Korean label for each actuation family, shown on the selected chip.
+  static const Map<SwitchKind, String> _kindLabels = <SwitchKind, String>{
+    SwitchKind.clicky: '클릭',
+    SwitchKind.tactile: '텍타일',
+    SwitchKind.linear: '리니어',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -168,6 +185,7 @@ class _SwitchChip extends StatelessWidget {
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             Container(
               width: 14,
@@ -185,6 +203,13 @@ class _SwitchChip extends StatelessWidget {
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
               ),
             ),
+            if (selected)
+              Text(
+                '${_kindLabels[switchType.kind]} · ${switchType.forceCn}cN',
+                style: textTheme.labelSmall?.copyWith(
+                  color: AppColors.textMuted,
+                ),
+              ),
           ],
         ),
       ),

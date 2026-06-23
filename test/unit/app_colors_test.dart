@@ -35,6 +35,13 @@ void main() {
       expect(AppColors.switchBrown.toARGB32(), 0xFF92400E);
       expect(AppColors.switchRed.toARGB32(), 0xFFEF4444);
       expect(AppColors.switchBlack.toARGB32(), 0xFF111827);
+      expect(AppColors.switchWhite.toARGB32(), 0xFFE5E7EB);
+      expect(AppColors.switchGray.toARGB32(), 0xFF6B7280);
+      expect(AppColors.switchClear.toARGB32(), 0xFFD1D5DB);
+      expect(AppColors.switchSilentRed.toARGB32(), 0xFFF87171);
+      expect(AppColors.switchSilentBlack.toARGB32(), 0xFF374151);
+      expect(AppColors.switchSpeedSilver.toARGB32(), 0xFFC0C7D0);
+      expect(AppColors.switchDarkGray.toARGB32(), 0xFF4B5563);
     });
 
     test('accentDefault is neonCyan', () {

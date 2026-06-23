@@ -73,8 +73,8 @@ void main() {
       ],
     ];
 
-    test('expects exactly eight clips (4 switches x down/up)', () {
-      expect(clips, hasLength(8));
+    test('expects exactly 22 clips (11 switches x down/up)', () {
+      expect(clips, hasLength(22));
     });
 
     for (final ({String id, String label, String path}) clip in clips) {

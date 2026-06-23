@@ -40,7 +40,7 @@ class FakeBackend implements SoundBackend {
 void main() {
   group('ClickSoundPlayer.init (AC1)', () {
     test(
-      'loads exactly the 8 catalog down/up assets, by correct path',
+      'loads exactly the 22 catalog down/up assets, by correct path',
       () async {
         final FakeBackend backend = FakeBackend();
         final ClickSoundPlayer player = ClickSoundPlayer(backend);
@@ -54,8 +54,8 @@ void main() {
           ],
         ];
 
-        expect(expected, hasLength(8));
-        expect(backend.loaded, hasLength(8));
+        expect(expected, hasLength(22));
+        expect(backend.loaded, hasLength(22));
         expect(backend.loaded.toSet(), equals(expected.toSet()));
         // Every loaded path is one of the catalog assets (no stray loads).
         expect(backend.loaded, containsAll(expected));
@@ -70,7 +70,7 @@ void main() {
       await player.init();
       await player.init();
 
-      expect(backend.loaded, hasLength(8));
+      expect(backend.loaded, hasLength(22));
     });
   });
 

@@ -7,11 +7,18 @@ import 'package:flutter/material.dart';
 /// The large, central, pressable mechanical-keycap that is the face of the app.
 ///
 /// [Keycap] is deliberately *self-contained*: it knows only about colors, an
-/// LED [ledMode], and press callbacks. It renders a 3D-ish cap (beveled base +
-/// gradient top + center label) wrapped in an [ledColor] glow, plays a fast
-/// press-down / snap-up animation, intensifies the glow while held, and fires
-/// one [LedRipple] per press. It knows nothing about audio, haptics, or stats —
-/// the [onPressDown] / [onPressUp] callbacks are how a parent wires those in.
+/// LED [ledMode], and press callbacks. It renders a sculpted 3D keycap — a
+/// rounded, slightly dished top face sitting on a visible side skirt, ringed by
+/// an [ledColor] glow and casting a soft floor shadow — plays a *pronounced*
+/// press animation, intensifies the glow while held, and fires one [LedRipple]
+/// per press. It knows nothing about audio, haptics, or stats — the
+/// [onPressDown] / [onPressUp] callbacks are how a parent wires those in.
+///
+/// The press is meant to read unmistakably as "the key went down and came back
+/// up": while held, the top face travels visibly downward (≥10 logical px),
+/// shrinks slightly, the skirt compresses so the cap looks shorter, the floor
+/// shadow shrinks toward the base, and the LED glow flares. Releasing snaps it
+/// all back to rest.
 ///
 /// Each press calls [onPressDown] exactly once (on `onTapDown`) and [onPressUp]
 /// exactly once (on `onTapUp` *or* `onTapCancel`, so a press is always balanced
@@ -63,7 +70,15 @@ class Keycap extends StatefulWidget {
   static const Duration pressDownDuration = Duration(milliseconds: 60);
 
   /// Duration of the snap-up phase (cap springs back to rest).
-  static const Duration pressUpDuration = Duration(milliseconds: 90);
+  static const Duration pressUpDuration = Duration(milliseconds: 110);
+
+  /// Maximum downward travel of the top face when fully pressed, as a fraction
+  /// of [size]. At the default size this is `240 * 0.075 = 18` logical px — well
+  /// past the "≥10px so it visibly went down" bar.
+  static const double pressTravelFraction = 0.075;
+
+  /// How much the top face shrinks at full press (uniform scale subtracted).
+  static const double pressScaleDrop = 0.07;
 
   /// Lifetime of a single press ripple; re-exported from [LedRipple] so callers
   /// and tests have one place to read the value.
@@ -77,9 +92,9 @@ class Keycap extends StatefulWidget {
   /// baseline after release. Exposed for the same reason as [rgbCycleDuration].
   static const Duration reactiveDecayDuration = Duration(milliseconds: 1200);
 
-  /// Key on the inner cap container, whose look changes between rest and
-  /// pressed. Tests use it to assert the pressed visual state is reachable and
-  /// to read the live glow color/intensity off its [BoxShadow].
+  /// Key on the inner cap (top face) container, whose look changes between rest
+  /// and pressed. Tests use it to assert the pressed visual state is reachable
+  /// and to read the live glow color/intensity off its [BoxShadow].
   static const Key innerCapKey = Key('keycap-inner');
 
   @override
@@ -248,51 +263,123 @@ class _KeycapState extends State<Keycap> with TickerProviderStateMixin {
           builder: (BuildContext context, Widget? child) {
             // Eased press depth in [0, 1].
             final double depth = Curves.easeOut.transform(_press.value);
-            // Cap shrinks slightly and sinks a few pixels while held.
-            final double scale = 1.0 - 0.06 * depth;
-            final double travel = AppSpacing.sm * depth;
-
-            return Transform.translate(
-              offset: Offset(0, travel),
-              child: Transform.scale(
-                scale: scale,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: <Widget>[
-                    _buildCap(context),
-                    // One LedRipple per active press, sized to the cap.
-                    for (final _RippleEntry entry in _ripples)
-                      Positioned.fill(
-                        key: ValueKey<int>(entry.id),
-                        child: LedRipple(
-                          color: entry.color,
-                          duration: Keycap.rippleDuration,
-                          onCompleted: () => _removeRipple(entry.id),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            );
+            return _buildCap(context, depth);
           },
         ),
       ),
     );
   }
 
-  /// Builds the static cap visual (glow + beveled body + label). The press
-  /// transform and ripples are applied by the caller. Reads the live
-  /// [_effectiveLedColor] and [_glowIntensity] so the mode animations show.
-  Widget _buildCap(BuildContext context) {
+  /// Builds the full sculpted cap for the given press [depth] (0 = rest, 1 =
+  /// fully pressed): floor shadow, side skirt, and the dished top face, plus any
+  /// active ripples. Reads the live [_effectiveLedColor] and [_glowIntensity] so
+  /// the mode animations show.
+  Widget _buildCap(BuildContext context, double depth) {
     final Color ledColor = _effectiveLedColor();
     final double glow = _glowIntensity();
-    final double radius = widget.size * 0.16;
+    final double size = widget.size;
+    final double radius = size * 0.18;
 
+    // Skirt: the visible side wall under the top face. It is tall at rest and
+    // compresses as the cap is pressed, so the cap looks physically shorter.
+    final double restSkirt = size * 0.16;
+    final double skirt = restSkirt * (1.0 - 0.7 * depth);
+
+    // The top face travels down and shrinks while held.
+    final double travel = size * Keycap.pressTravelFraction * depth;
+    final double topScale = 1.0 - Keycap.pressScaleDrop * depth;
+
+    // Floor shadow shrinks toward the base as the cap sinks (less air gap).
+    final double shadowScale = 1.0 - 0.45 * depth;
+    final double shadowOpacity = 0.55 * (1.0 - 0.7 * depth);
+
+    return Stack(
+      alignment: Alignment.center,
+      children: <Widget>[
+        // Floor shadow, pinned near the base of the cap; shrinks on press.
+        Align(
+          alignment: const Alignment(0, 0.92),
+          child: Transform.scale(
+            scaleX: shadowScale,
+            scaleY: shadowScale * 0.5,
+            child: Container(
+              width: size * 0.74,
+              height: size * 0.16,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(size * 0.08),
+                boxShadow: <BoxShadow>[
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: shadowOpacity),
+                    blurRadius: 28,
+                    spreadRadius: 2,
+                  ),
+                ],
+                color: Colors.black.withValues(alpha: shadowOpacity * 0.6),
+              ),
+            ),
+          ),
+        ),
+        // The side skirt: drawn as a shorter rounded body sitting under the top
+        // face, offset down so its lower edge stays put while the top compresses
+        // toward it on press.
+        Transform.translate(
+          offset: Offset(0, skirt * 0.5),
+          child: Container(
+            width: size * 0.86,
+            height: size * 0.86,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(radius),
+              gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: <Color>[AppColors.keycapBase, AppColors.keycapEdge],
+              ),
+              border: Border.all(color: AppColors.keycapEdge, width: 2),
+            ),
+          ),
+        ),
+        // The top face: travels down + shrinks on press. The scale Transform is
+        // what observers (and tests) read as the pressed visual state.
+        Transform.translate(
+          offset: Offset(0, travel),
+          child: Transform.scale(
+            scale: topScale,
+            child: _buildTopFace(context, ledColor, glow, radius),
+          ),
+        ),
+        // One LedRipple per active press, sized to the cap.
+        for (final _RippleEntry entry in _ripples)
+          Positioned.fill(
+            key: ValueKey<int>(entry.id),
+            child: LedRipple(
+              color: entry.color,
+              duration: Keycap.rippleDuration,
+              onCompleted: () => _removeRipple(entry.id),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// The dished top face of the cap: a rounded square with a recessed center
+  /// that catches the LED color, the surrounding glow shadow, and the legend.
+  ///
+  /// The outer [Container] carries [Keycap.innerCapKey] and the LED glow as its
+  /// first [BoxShadow] (read by tests for the live glow color/intensity).
+  Widget _buildTopFace(
+    BuildContext context,
+    Color ledColor,
+    double glow,
+    double radius,
+  ) {
+    final double topSize = widget.size * 0.78;
     return Container(
       key: Keycap.innerCapKey,
+      width: topSize,
+      height: topSize,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(radius),
-        // Beveled body: lighter top edge, darker bottom edge.
+        // Sculpted top: bright crown fading to a darker lower lip.
         gradient: const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -301,56 +388,60 @@ class _KeycapState extends State<Keycap> with TickerProviderStateMixin {
             AppColors.keycapBase,
             AppColors.keycapEdge,
           ],
-          stops: <double>[0.0, 0.7, 1.0],
+          stops: <double>[0.0, 0.72, 1.0],
         ),
         border: Border.all(color: AppColors.keycapEdge, width: 2),
         boxShadow: <BoxShadow>[
-          // The LED glow — stronger and tighter while pressed / flaring.
+          // The LED glow — first shadow; stronger/tighter while pressed/flaring.
           BoxShadow(
             color: ledColor.withValues(alpha: glow),
-            blurRadius: 24 + 16 * glow,
-            spreadRadius: 1 + 3 * glow,
+            blurRadius: 24 + 18 * glow,
+            spreadRadius: 1 + 4 * glow,
+          ),
+          // A subtle drop under the top face, so it reads as a raised lid.
+          const BoxShadow(
+            color: Colors.black54,
+            blurRadius: 10,
+            offset: Offset(0, 4),
           ),
         ],
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
-        child: Center(
-          child: Stack(
-            alignment: Alignment.center,
-            children: <Widget>[
-              // Recessed top face that catches the LED color faintly.
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(radius * 0.7),
-                    gradient: RadialGradient(
-                      colors: <Color>[
-                        ledColor.withValues(alpha: 0.10 + 0.18 * glow),
-                        AppColors.keycapBase.withValues(alpha: 0.0),
+        child: DecoratedBox(
+          // Dished center: a radial well that is darker in the middle and
+          // catches a ring of the LED color, giving the top a sculpted "scoop".
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(radius * 0.7),
+            gradient: RadialGradient(
+              radius: 0.85,
+              colors: <Color>[
+                AppColors.keycapEdge.withValues(alpha: 0.55),
+                AppColors.keycapBase.withValues(alpha: 0.0),
+                ledColor.withValues(alpha: 0.12 + 0.20 * glow),
+              ],
+              stops: const <double>[0.0, 0.6, 1.0],
+            ),
+          ),
+          child: Center(
+            child: widget.label.isEmpty
+                ? const SizedBox.shrink()
+                : Text(
+                    widget.label,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: widget.size * 0.16,
+                      fontWeight: FontWeight.w700,
+                      height: 1.0,
+                      shadows: <Shadow>[
+                        Shadow(
+                          color: ledColor.withValues(alpha: glow),
+                          blurRadius: 12 * glow,
+                        ),
                       ],
                     ),
                   ),
-                ),
-              ),
-              if (widget.label.isNotEmpty)
-                Text(
-                  widget.label,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: widget.size * 0.22,
-                    fontWeight: FontWeight.w700,
-                    height: 1.0,
-                    shadows: <Shadow>[
-                      Shadow(
-                        color: ledColor.withValues(alpha: glow),
-                        blurRadius: 12 * glow,
-                      ),
-                    ],
-                  ),
-                ),
-            ],
           ),
         ),
       ),

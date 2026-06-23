@@ -107,9 +107,9 @@ void main() {
     await tester.pump();
   }
 
-  group('HomeScreen layout (AC1)', () {
+  group('HomeScreen layout (AC3, AC6)', () {
     testWidgets(
-      'cold start shows the keycap, the three stats, and four switch chips',
+      'cold start shows the keycap, exactly two stats, and eleven switch chips',
       (WidgetTester tester) async {
         await pumpApp(tester, prefs: prefs, player: player);
 
@@ -117,29 +117,44 @@ void main() {
         expect(find.byType(Keycap), findsOneWidget);
         expect(find.text(SwitchCatalog.blue.nameEn), findsOneWidget);
 
-        // Stats readout: all three values present, starting at 0.
+        // Stats readout: exactly the two spec'd values, starting at 0.
         expect(find.byKey(HomeScreen.totalStatKey), findsOneWidget);
-        expect(find.byKey(HomeScreen.sessionStatKey), findsOneWidget);
-        expect(find.byKey(HomeScreen.cpmStatKey), findsOneWidget);
+        expect(find.byKey(HomeScreen.rpmStatKey), findsOneWidget);
+        expect(find.byKey(const Key('stat-session')), findsNothing);
+        expect(find.byKey(const Key('stat-cpm')), findsNothing);
+        expect(find.byKey(const Key('stat-best')), findsNothing);
         expect(
           tester.widget<Text>(find.byKey(HomeScreen.totalStatKey)).data,
           '0',
         );
 
-        // One chip per catalog switch.
+        // One chip per catalog switch — all eleven, found via their keys
+        // (chips off-screen in the horizontal list are still in the tree).
+        expect(SwitchCatalog.all, hasLength(11));
         for (final SwitchType s in SwitchCatalog.all) {
-          expect(find.byKey(HomeScreen.switchChipKey(s.id)), findsOneWidget);
+          expect(
+            find.byKey(HomeScreen.switchChipKey(s.id)),
+            findsOneWidget,
+            reason: 'chip for ${s.id}',
+          );
         }
+
+        // The selector is horizontally scrollable.
+        expect(
+          find.byWidgetPredicate(
+            (Widget w) =>
+                w is Scrollable && w.axisDirection == AxisDirection.right,
+          ),
+          findsOneWidget,
+        );
 
         expect(tester.takeException(), isNull);
       },
     );
   });
 
-  group('Counter increment (AC2)', () {
-    testWidgets('three taps drive total and session to 3', (
-      WidgetTester tester,
-    ) async {
+  group('Counter increment (AC3)', () {
+    testWidgets('three taps drive total to 3', (WidgetTester tester) async {
       final ProviderContainer container = await pumpApp(
         tester,
         prefs: prefs,
@@ -154,17 +169,12 @@ void main() {
         tester.widget<Text>(find.byKey(HomeScreen.totalStatKey)).data,
         '3',
       );
-      expect(
-        tester.widget<Text>(find.byKey(HomeScreen.sessionStatKey)).data,
-        '3',
-      );
       // State agrees with the rendered text.
       expect(container.read(statsProvider).totalClicks, 3);
-      expect(container.read(statsProvider).sessionClicks, 3);
     });
   });
 
-  group('Switch selection (AC3)', () {
+  group('Switch selection (AC6)', () {
     testWidgets('tapping 적축 selects red and updates the keycap label', (
       WidgetTester tester,
     ) async {
@@ -186,6 +196,34 @@ void main() {
       expect(find.text(SwitchCatalog.red.nameEn), findsOneWidget);
       expect(find.text(SwitchCatalog.blue.nameEn), findsNothing);
     });
+
+    testWidgets(
+      'a later chip (speedSilver) is reachable by scrolling and selectable',
+      (WidgetTester tester) async {
+        final ProviderContainer container = await pumpApp(
+          tester,
+          prefs: prefs,
+          player: player,
+        );
+
+        final Finder chip = find.byKey(HomeScreen.switchChipKey('speedSilver'));
+        // The chip exists in the tree (all eleven are built at once) but starts
+        // scrolled off-screen; bring it into view by scrolling the horizontal
+        // selector, then tap it.
+        await tester.ensureVisible(chip);
+        await tester.pumpAndSettle();
+
+        await tester.tap(chip);
+        await tester.pumpAndSettle();
+
+        expect(
+          container.read(settingsProvider).selectedSwitchId,
+          'speedSilver',
+        );
+        // Keycap label now reflects the speed silver switch.
+        expect(find.text(SwitchCatalog.speedSilver.nameEn), findsOneWidget);
+      },
+    );
   });
 
   group('Press wiring: sound + haptics + stats (AC4)', () {
