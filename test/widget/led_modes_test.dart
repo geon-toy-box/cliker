@@ -37,6 +37,7 @@ void main() {
         _host(
           const Keycap(
             ledColor: AppColors.neonCyan,
+            stemColor: AppColors.switchBlue,
             ledMode: LedMode.rgbCycle,
             label: 'A',
           ),
@@ -73,6 +74,7 @@ void main() {
         _host(
           const Keycap(
             ledColor: AppColors.neonCyan,
+            stemColor: AppColors.switchBlue,
             ledMode: LedMode.solid,
             label: 'A',
           ),
@@ -98,6 +100,7 @@ void main() {
         _host(
           const Keycap(
             ledColor: AppColors.neonGreen,
+            stemColor: AppColors.switchBlack,
             ledMode: LedMode.reactive,
             label: 'A',
           ),
@@ -140,7 +143,13 @@ void main() {
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(
-        _host(const Keycap(ledColor: AppColors.neonMagenta, label: 'A')),
+        _host(
+          const Keycap(
+            ledColor: AppColors.neonMagenta,
+            stemColor: AppColors.switchRed,
+            label: 'A',
+          ),
+        ),
       );
       await tester.pump();
 

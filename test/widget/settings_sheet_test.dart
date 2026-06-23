@@ -5,6 +5,7 @@ import 'package:cliker/providers/settings_providers.dart';
 import 'package:cliker/screens/home_screen.dart';
 import 'package:cliker/theme/app_colors.dart';
 import 'package:cliker/widgets/keycap.dart';
+import 'package:cliker/widgets/rgb_wheel.dart';
 import 'package:cliker/widgets/settings_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -130,16 +131,19 @@ void main() {
 
       await openSheet(tester);
 
-      // Sheet root, both toggles, all six swatches, all four mode chips.
+      // Sheet root, both toggles, the LED color wheel, all four mode chips.
       expect(find.byKey(SettingsSheet.sheetKey), findsOneWidget);
       expect(find.byKey(SettingsSheet.soundToggleKey), findsOneWidget);
       expect(find.byKey(SettingsSheet.hapticToggleKey), findsOneWidget);
-      for (final Color color in AppColors.ledPalette) {
-        expect(
-          find.byKey(SettingsSheet.swatchKey(color.toARGB32())),
-          findsOneWidget,
-        );
-      }
+      // The six-swatch palette is replaced by the RGB wheel inside the sheet.
+      // (The home screen also has a wheel, so scope the match to the sheet.)
+      expect(
+        find.descendant(
+          of: find.byKey(SettingsSheet.sheetKey),
+          matching: find.byKey(RgbWheel.wheelKey),
+        ),
+        findsOneWidget,
+      );
       for (final LedMode mode in LedMode.values) {
         expect(find.byKey(SettingsSheet.modeChipKey(mode)), findsOneWidget);
       }
@@ -209,8 +213,8 @@ void main() {
     );
   });
 
-  group('AC3: color swatch updates provider + keycap glow + persists', () {
-    testWidgets('selecting neonMagenta recolors the glow and persists', (
+  group('AC3: RGB wheel updates provider + keycap glow + persists', () {
+    testWidgets('picking a hue on the home wheel recolors the glow + persists', (
       WidgetTester tester,
     ) async {
       final ProviderContainer container = await pumpApp(
@@ -219,37 +223,48 @@ void main() {
         player: player,
       );
 
-      // Defaults to neonCyan.
+      // Defaults to neonCyan; the resting glow carries the cyan hue (its alpha
+      // differs from the swatch, so compare only the RGB channels).
       final int cyan = AppColors.neonCyan.toARGB32();
-      final int magenta = AppColors.neonMagenta.toARGB32();
       expect(container.read(settingsProvider).ledColorArgb, cyan);
-      // The resting glow carries the cyan hue (alpha differs from the swatch).
       expect(
         keycapGlowColor(tester).toARGB32() & 0x00FFFFFF,
         cyan & 0x00FFFFFF,
       );
 
-      await openSheet(tester);
-      await tester.tap(find.byKey(SettingsSheet.swatchKey(magenta)));
-      await tester.pumpAndSettle();
+      // Tap the bottom-edge of the wheel → hue ≈ 180° (cyan/teal region). The
+      // exact color comes from RgbWheel.hueAt, so derive the expected value the
+      // same way the widget does and compare against it.
+      final Rect wheel = tester.getRect(find.byKey(RgbWheel.wheelKey));
+      final Offset tapPoint = Offset(wheel.center.dx, wheel.bottom - 2);
+      final double expectedHue = RgbWheel.hueAt(
+        tapPoint - wheel.topLeft,
+        wheel.width,
+      );
+      final int expectedArgb = RgbWheel.colorForHue(expectedHue).toARGB32();
 
-      // Provider updated, then dismiss the sheet and re-check the glow.
-      expect(container.read(settingsProvider).ledColorArgb, magenta);
-      await tester.tapAt(const Offset(10, 10));
-      await tester.pumpAndSettle();
+      await tester.tapAt(tapPoint);
+      await tester.pump();
+
+      // Provider updated to exactly the wheel's emitted color.
+      expect(container.read(settingsProvider).ledColorArgb, expectedArgb);
+      // And it is no longer the default cyan.
+      expect(container.read(settingsProvider).ledColorArgb, isNot(cyan));
+
+      // The keycap glow follows the new color (RGB channels match).
       expect(
         keycapGlowColor(tester).toARGB32() & 0x00FFFFFF,
-        magenta & 0x00FFFFFF,
+        expectedArgb & 0x00FFFFFF,
       );
 
-      // Persisted: a fresh container over the same prefs keeps magenta.
+      // Persisted: a fresh container over the same prefs keeps the pick.
       final SharedPreferences freshPrefs =
           await SharedPreferences.getInstance();
       final ProviderContainer second = ProviderContainer(
         overrides: [sharedPreferencesProvider.overrideWithValue(freshPrefs)],
       );
       addTearDown(second.dispose);
-      expect(second.read(settingsProvider).ledColorArgb, magenta);
+      expect(second.read(settingsProvider).ledColorArgb, expectedArgb);
     });
   });
 

@@ -38,7 +38,13 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
-        _host(const Keycap(ledColor: AppColors.neonCyan, label: 'A')),
+        _host(
+          const Keycap(
+            ledColor: AppColors.neonCyan,
+            stemColor: AppColors.switchBlue,
+            label: 'A',
+          ),
+        ),
       );
       await tester.pump();
 
@@ -57,7 +63,13 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
-        _host(const Keycap(ledColor: AppColors.neonCyan, label: 'A')),
+        _host(
+          const Keycap(
+            ledColor: AppColors.neonCyan,
+            stemColor: AppColors.switchBlue,
+            label: 'A',
+          ),
+        ),
       );
 
       // Hold the cap down and drive the press-down animation to its extreme,

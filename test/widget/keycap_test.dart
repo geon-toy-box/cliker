@@ -38,7 +38,12 @@ void main() {
       const Key capKey = Key('the-keycap');
       await tester.pumpWidget(
         _host(
-          const Keycap(key: capKey, ledColor: AppColors.neonCyan, label: 'A'),
+          const Keycap(
+            key: capKey,
+            ledColor: AppColors.neonCyan,
+            stemColor: AppColors.switchBlue,
+            label: 'A',
+          ),
         ),
       );
 
@@ -47,6 +52,41 @@ void main() {
       expect(find.text('A'), findsOneWidget);
       // No exceptions during layout/paint.
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('AC5: stemColor reaches the switch-layer painter', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          const Keycap(
+            ledColor: AppColors.neonCyan,
+            stemColor: AppColors.switchRed,
+            label: 'A',
+          ),
+        ),
+      );
+
+      final CustomPaint paint = tester.widget<CustomPaint>(
+        find.byKey(Keycap.switchLayerKey),
+      );
+      final KeycapSwitchPainter painter = paint.painter! as KeycapSwitchPainter;
+      expect(painter.stemColor, AppColors.switchRed);
+
+      // A different switch repaints with a different stem color.
+      await tester.pumpWidget(
+        _host(
+          const Keycap(
+            ledColor: AppColors.neonCyan,
+            stemColor: AppColors.switchBlue,
+            label: 'A',
+          ),
+        ),
+      );
+      final KeycapSwitchPainter repainted =
+          tester.widget<CustomPaint>(find.byKey(Keycap.switchLayerKey)).painter!
+              as KeycapSwitchPainter;
+      expect(repainted.stemColor, AppColors.switchBlue);
     });
 
     testWidgets(
@@ -60,6 +100,7 @@ void main() {
           _host(
             Keycap(
               ledColor: AppColors.neonCyan,
+              stemColor: AppColors.switchBlue,
               label: 'A',
               onPressDown: () => downCount++,
               onPressUp: () => upCount++,
@@ -97,7 +138,13 @@ void main() {
       'AC3: each press adds exactly one LedRipple, gone after rippleDuration',
       (WidgetTester tester) async {
         await tester.pumpWidget(
-          _host(const Keycap(ledColor: AppColors.neonCyan, label: 'A')),
+          _host(
+            const Keycap(
+              ledColor: AppColors.neonCyan,
+              stemColor: AppColors.switchBlue,
+              label: 'A',
+            ),
+          ),
         );
 
         // No ripple before any interaction.
@@ -135,6 +182,7 @@ void main() {
         _host(
           Keycap(
             ledColor: AppColors.neonMagenta,
+            stemColor: AppColors.switchRed,
             onPressDown: () => downCount++,
             onPressUp: () => upCount++,
           ),
@@ -173,6 +221,7 @@ void main() {
         _host(
           Keycap(
             ledColor: AppColors.neonCyan,
+            stemColor: AppColors.switchBlue,
             onPressDown: () => downCount++,
             onPressUp: () => upCount++,
           ),

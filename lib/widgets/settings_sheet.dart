@@ -1,21 +1,21 @@
 import 'package:cliker/providers/settings_providers.dart';
 import 'package:cliker/theme/app_colors.dart';
 import 'package:cliker/theme/app_spacing.dart';
+import 'package:cliker/widgets/rgb_wheel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// The settings panel, shown as a modal bottom sheet from [HomeScreen].
 ///
 /// Every control is bound directly to [settingsProvider]: toggling a switch or
-/// tapping a swatch/chip calls the matching notifier setter, which updates state
+/// tapping a chip/wheel calls the matching notifier setter, which updates state
 /// and persists it immediately. The sheet keeps no local state of its own — it
 /// is a thin view over the provider, so it always reflects the live settings.
 ///
 /// Controls:
 /// - Sound on/off ([SettingsNotifier.setSound]).
 /// - Haptic on/off ([SettingsNotifier.setHaptic]).
-/// - LED color: the six [AppColors.ledPalette] swatches, the active one ringed
-///   ([SettingsNotifier.setLedColor]).
+/// - LED color: the [RgbWheel] hue picker ([SettingsNotifier.setLedColor]).
 /// - LED mode: ripple / solid / rgbCycle / reactive chips
 ///   ([SettingsNotifier.setLedMode]).
 class SettingsSheet extends ConsumerWidget {
@@ -29,9 +29,6 @@ class SettingsSheet extends ConsumerWidget {
 
   /// Key on the haptic toggle ([Switch]).
   static const Key hapticToggleKey = Key('settings-haptic-toggle');
-
-  /// Key for the color swatch of [color]; full key is the packed ARGB int.
-  static Key swatchKey(int argb) => Key('settings-swatch-$argb');
 
   /// Key for the LED-mode chip of [mode].
   static Key modeChipKey(LedMode mode) => Key('settings-mode-${mode.name}');
@@ -95,12 +92,14 @@ class SettingsSheet extends ConsumerWidget {
             ),
             const SizedBox(height: AppSpacing.lg),
 
-            // LED color swatches.
+            // LED color wheel.
             _SectionLabel(text: 'LED 색', textTheme: textTheme),
-            const SizedBox(height: AppSpacing.sm),
-            _ColorSwatches(
-              selectedArgb: settings.ledColorArgb,
-              onSelect: notifier.setLedColor,
+            const SizedBox(height: AppSpacing.md),
+            Center(
+              child: RgbWheel(
+                color: Color(settings.ledColorArgb),
+                onColorChanged: (Color c) => notifier.setLedColor(c.toARGB32()),
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
 
@@ -166,77 +165,6 @@ class _SectionLabel extends StatelessWidget {
     return Text(
       text,
       style: textTheme.labelLarge?.copyWith(color: AppColors.textMuted),
-    );
-  }
-}
-
-/// The six [AppColors.ledPalette] swatches in a wrapping row. The currently
-/// selected color is ringed; tapping any swatch reports its packed ARGB int.
-class _ColorSwatches extends StatelessWidget {
-  const _ColorSwatches({required this.selectedArgb, required this.onSelect});
-
-  final int selectedArgb;
-  final ValueChanged<int> onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: AppSpacing.md,
-      runSpacing: AppSpacing.md,
-      children: <Widget>[
-        for (final Color color in AppColors.ledPalette)
-          _Swatch(
-            color: color,
-            selected: color.toARGB32() == selectedArgb,
-            onTap: () => onSelect(color.toARGB32()),
-          ),
-      ],
-    );
-  }
-}
-
-/// One tappable color dot. Selected swatches get a white ring + a colored glow
-/// so the active LED color reads at a glance.
-class _Swatch extends StatelessWidget {
-  const _Swatch({
-    required this.color,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final Color color;
-  final bool selected;
-  final VoidCallback onTap;
-
-  static const double _size = 40;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      key: SettingsSheet.swatchKey(color.toARGB32()),
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        width: _size,
-        height: _size,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: selected ? AppColors.textPrimary : Colors.transparent,
-            width: 3,
-          ),
-          boxShadow: selected
-              ? <BoxShadow>[
-                  BoxShadow(
-                    color: color.withValues(alpha: 0.6),
-                    blurRadius: 12,
-                    spreadRadius: 1,
-                  ),
-                ]
-              : null,
-        ),
-      ),
     );
   }
 }

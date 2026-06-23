@@ -60,7 +60,8 @@ tags: [toybox, project, planner]
 | T010 | Release build: signing config + AAB + permissions audit | M3 | T009 | DONE | qa.md PASS · 89027f3 |
 | T011 | Store listing metadata + privacy policy | M3 | T010 | DONE | qa.md PASS · 20d13b7 |
 | T012 | 스위치 11종 확장 + UI 개편(키캡·통계 2개·선택기) | M4 | — | DONE | qa.md PASS · 22a1fbe |
-| T013 | MZ 리디자인: 실사 스위치+키캡 / RGB 휠 / 축 메뉴 | M5 | T012 | TODO | — |
+| T013 | MZ 리디자인: 실사 스위치+키캡 / RGB 휠 / 축 메뉴 | M5 | T012 | VERIFIED | qa.md PASS (commit pending) |
+| T014 | 스위치 13종 + 메뉴 정보 풍부화(느낌·소리·추천용도) | M5 | T013 | TODO | — |
 
 ## Decisions log
 <!-- Architecture/product decisions, dated, with the reasoning. Prevents re-litigating. -->

@@ -6,6 +6,7 @@ import 'package:cliker/providers/settings_providers.dart';
 import 'package:cliker/providers/stats_providers.dart';
 import 'package:cliker/screens/home_screen.dart';
 import 'package:cliker/widgets/keycap.dart';
+import 'package:cliker/widgets/switch_menu.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -107,15 +108,16 @@ void main() {
     await tester.pump();
   }
 
-  group('HomeScreen layout (AC3, AC6)', () {
+  group('HomeScreen layout (AC1, AC3, AC6)', () {
     testWidgets(
-      'cold start shows the keycap, exactly two stats, and eleven switch chips',
+      'cold start shows the keycap + two stats; switch chips live behind the '
+      'menu, not inline on home',
       (WidgetTester tester) async {
         await pumpApp(tester, prefs: prefs, player: player);
 
-        // Center keycap with the default switch (blue) label.
+        // Center keycap with the default switch (blue) Korean label.
         expect(find.byType(Keycap), findsOneWidget);
-        expect(find.text(SwitchCatalog.blue.nameEn), findsOneWidget);
+        expect(find.text(SwitchCatalog.blue.nameKo), findsOneWidget);
 
         // Stats readout: exactly the two spec'd values, starting at 0.
         expect(find.byKey(HomeScreen.totalStatKey), findsOneWidget);
@@ -128,25 +130,27 @@ void main() {
           '0',
         );
 
-        // One chip per catalog switch — all eleven, found via their keys
-        // (chips off-screen in the horizontal list are still in the tree).
+        // AC1: the switch chips are NOT inline on home anymore — none present
+        // until the menu is opened.
         expect(SwitchCatalog.all, hasLength(11));
         for (final SwitchType s in SwitchCatalog.all) {
           expect(
             find.byKey(HomeScreen.switchChipKey(s.id)),
-            findsOneWidget,
-            reason: 'chip for ${s.id}',
+            findsNothing,
+            reason: 'chip for ${s.id} must be hidden until the menu opens',
           );
         }
 
-        // The selector is horizontally scrollable.
-        expect(
-          find.byWidgetPredicate(
-            (Widget w) =>
-                w is Scrollable && w.axisDirection == AxisDirection.right,
-          ),
-          findsOneWidget,
-        );
+        // AC1: tapping the switch-menu button reveals all eleven chips.
+        await tester.tap(find.byKey(HomeScreen.switchMenuButtonKey));
+        await tester.pumpAndSettle();
+        for (final SwitchType s in SwitchCatalog.all) {
+          expect(
+            find.byKey(HomeScreen.switchChipKey(s.id)),
+            findsOneWidget,
+            reason: 'chip for ${s.id} after opening the menu',
+          );
+        }
 
         expect(tester.takeException(), isNull);
       },
@@ -174,31 +178,16 @@ void main() {
     });
   });
 
-  group('Switch selection (AC6)', () {
-    testWidgets('tapping 적축 selects red and updates the keycap label', (
-      WidgetTester tester,
-    ) async {
-      final ProviderContainer container = await pumpApp(
-        tester,
-        prefs: prefs,
-        player: player,
-      );
-
-      // Starts on blue.
-      expect(container.read(settingsProvider).selectedSwitchId, 'blue');
-      expect(find.text(SwitchCatalog.red.nameEn), findsNothing);
-
-      await tester.tap(find.byKey(HomeScreen.switchChipKey('red')));
+  group('Switch selection via the menu (AC1, AC2)', () {
+    /// Opens the switch menu and settles its open animation.
+    Future<void> openSwitchMenu(WidgetTester tester) async {
+      await tester.tap(find.byKey(HomeScreen.switchMenuButtonKey));
       await tester.pumpAndSettle();
-
-      expect(container.read(settingsProvider).selectedSwitchId, 'red');
-      // Keycap label now reflects the red switch.
-      expect(find.text(SwitchCatalog.red.nameEn), findsOneWidget);
-      expect(find.text(SwitchCatalog.blue.nameEn), findsNothing);
-    });
+    }
 
     testWidgets(
-      'a later chip (speedSilver) is reachable by scrolling and selectable',
+      'opening the menu and tapping 적축 selects red, closes the menu, and '
+      'updates the keycap label',
       (WidgetTester tester) async {
         final ProviderContainer container = await pumpApp(
           tester,
@@ -206,10 +195,37 @@ void main() {
           player: player,
         );
 
+        // Starts on blue; the keycap shows blue's Korean name.
+        expect(container.read(settingsProvider).selectedSwitchId, 'blue');
+        expect(find.text(SwitchCatalog.blue.nameKo), findsOneWidget);
+
+        await openSwitchMenu(tester);
+        await tester.tap(find.byKey(HomeScreen.switchChipKey('red')));
+        await tester.pumpAndSettle();
+
+        expect(container.read(settingsProvider).selectedSwitchId, 'red');
+        // Menu closed after selection.
+        expect(find.byKey(SwitchMenu.sheetKey), findsNothing);
+        // Keycap label now reflects the red switch (and only the keycap label,
+        // since the menu — which also shows nameKo — is gone).
+        expect(find.text(SwitchCatalog.red.nameKo), findsOneWidget);
+        expect(find.text(SwitchCatalog.blue.nameKo), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'a later switch (speedSilver) is reachable in the menu and selectable',
+      (WidgetTester tester) async {
+        final ProviderContainer container = await pumpApp(
+          tester,
+          prefs: prefs,
+          player: player,
+        );
+
+        await openSwitchMenu(tester);
+
         final Finder chip = find.byKey(HomeScreen.switchChipKey('speedSilver'));
-        // The chip exists in the tree (all eleven are built at once) but starts
-        // scrolled off-screen; bring it into view by scrolling the horizontal
-        // selector, then tap it.
+        // The menu list may need a scroll to bring a later row into view.
         await tester.ensureVisible(chip);
         await tester.pumpAndSettle();
 
@@ -221,7 +237,7 @@ void main() {
           'speedSilver',
         );
         // Keycap label now reflects the speed silver switch.
-        expect(find.text(SwitchCatalog.speedSilver.nameEn), findsOneWidget);
+        expect(find.text(SwitchCatalog.speedSilver.nameKo), findsOneWidget);
       },
     );
   });

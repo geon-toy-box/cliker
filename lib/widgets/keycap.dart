@@ -4,21 +4,28 @@ import 'package:cliker/theme/app_spacing.dart';
 import 'package:cliker/widgets/led_ripple.dart';
 import 'package:flutter/material.dart';
 
-/// The large, central, pressable mechanical-keycap that is the face of the app.
+/// The large, central, pressable *mechanical switch + keycap* that is the face
+/// of the app.
 ///
-/// [Keycap] is deliberately *self-contained*: it knows only about colors, an
-/// LED [ledMode], and press callbacks. It renders a sculpted 3D keycap — a
-/// rounded, slightly dished top face sitting on a visible side skirt, ringed by
-/// an [ledColor] glow and casting a soft floor shadow — plays a *pronounced*
-/// press animation, intensifies the glow while held, and fires one [LedRipple]
-/// per press. It knows nothing about audio, haptics, or stats — the
+/// [Keycap] renders a realistic stack, bottom to top:
+///
+/// - **Plate**: a dark rounded base from which the LED [ledColor] *underglow*
+///   leaks out around the switch.
+/// - **Switch housing**: a Cherry-MX-style dark-charcoal top housing (with the
+///   characteristic stepped notches), and through its center hole the cross
+///   ("+") **stem** rises in [stemColor] — the switch's identity.
+/// - **Keycap**: a sculpted, glossy OEM-profile cap (dished top + highlight +
+///   side walls) seated on the stem, ringed by an [ledColor] rim glow.
+///
+/// It is deliberately *self-contained*: it knows only about colors, an LED
+/// [ledMode], and press callbacks — nothing about audio, haptics, or stats. The
 /// [onPressDown] / [onPressUp] callbacks are how a parent wires those in.
 ///
-/// The press is meant to read unmistakably as "the key went down and came back
-/// up": while held, the top face travels visibly downward (≥10 logical px),
-/// shrinks slightly, the skirt compresses so the cap looks shorter, the floor
-/// shadow shrinks toward the base, and the LED glow flares. Releasing snaps it
-/// all back to rest.
+/// The press reads unmistakably as "the key went down and came back up": while
+/// held, the cap (and the stem under it) travels visibly downward (~18 logical
+/// px at the default size), the gap between the cap's underside and the housing
+/// closes, the cap shrinks slightly, the floor shadow shrinks, and the LED
+/// underglow flares. Releasing snaps it all back to rest.
 ///
 /// Each press calls [onPressDown] exactly once (on `onTapDown`) and [onPressUp]
 /// exactly once (on `onTapUp` *or* `onTapCancel`, so a press is always balanced
@@ -37,6 +44,7 @@ class Keycap extends StatefulWidget {
   const Keycap({
     super.key,
     required this.ledColor,
+    required this.stemColor,
     this.ledMode = LedMode.ripple,
     this.label = '',
     this.onPressDown,
@@ -47,6 +55,9 @@ class Keycap extends StatefulWidget {
   /// The base LED color used for the surrounding glow and the press ripples.
   /// In [LedMode.rgbCycle] this is the *starting* hue the cycle sweeps from.
   final Color ledColor;
+
+  /// Color of the switch stem (the cross under the cap) — the switch identity.
+  final Color stemColor;
 
   /// How the LED glow animates. See the class doc for each mode's behavior.
   final LedMode ledMode;
@@ -72,12 +83,12 @@ class Keycap extends StatefulWidget {
   /// Duration of the snap-up phase (cap springs back to rest).
   static const Duration pressUpDuration = Duration(milliseconds: 110);
 
-  /// Maximum downward travel of the top face when fully pressed, as a fraction
-  /// of [size]. At the default size this is `240 * 0.075 = 18` logical px — well
+  /// Maximum downward travel of the keycap when fully pressed, as a fraction of
+  /// [size]. At the default size this is `240 * 0.075 = 18` logical px — well
   /// past the "≥10px so it visibly went down" bar.
   static const double pressTravelFraction = 0.075;
 
-  /// How much the top face shrinks at full press (uniform scale subtracted).
+  /// How much the keycap shrinks at full press (uniform scale subtracted).
   static const double pressScaleDrop = 0.07;
 
   /// Lifetime of a single press ripple; re-exported from [LedRipple] so callers
@@ -92,10 +103,15 @@ class Keycap extends StatefulWidget {
   /// baseline after release. Exposed for the same reason as [rgbCycleDuration].
   static const Duration reactiveDecayDuration = Duration(milliseconds: 1200);
 
-  /// Key on the inner cap (top face) container, whose look changes between rest
-  /// and pressed. Tests use it to assert the pressed visual state is reachable
-  /// and to read the live glow color/intensity off its [BoxShadow].
+  /// Key on the keycap top face — the sculpted cap whose look changes between
+  /// rest and pressed. Tests use it to assert the pressed visual state is
+  /// reachable (its [Transform] ancestors shrink on press) and to read the live
+  /// glow color/intensity off its first [BoxShadow].
   static const Key innerCapKey = Key('keycap-inner');
+
+  /// Key on the switch layer (plate + housing + stem) [CustomPaint]. Tests read
+  /// the painter off it to confirm [stemColor] reached the render.
+  static const Key switchLayerKey = Key('keycap-switch-layer');
 
   @override
   State<Keycap> createState() => _KeycapState();
@@ -263,31 +279,26 @@ class _KeycapState extends State<Keycap> with TickerProviderStateMixin {
           builder: (BuildContext context, Widget? child) {
             // Eased press depth in [0, 1].
             final double depth = Curves.easeOut.transform(_press.value);
-            return _buildCap(context, depth);
+            return _buildStack(context, depth);
           },
         ),
       ),
     );
   }
 
-  /// Builds the full sculpted cap for the given press [depth] (0 = rest, 1 =
-  /// fully pressed): floor shadow, side skirt, and the dished top face, plus any
-  /// active ripples. Reads the live [_effectiveLedColor] and [_glowIntensity] so
-  /// the mode animations show.
-  Widget _buildCap(BuildContext context, double depth) {
+  /// Builds the full switch+keycap stack for the given press [depth] (0 = rest,
+  /// 1 = fully pressed): floor shadow, the underglow plate + switch housing +
+  /// stem painted with [KeycapSwitchPainter], the sculpted keycap (which travels
+  /// down on press), and any active ripples.
+  Widget _buildStack(BuildContext context, double depth) {
     final Color ledColor = _effectiveLedColor();
     final double glow = _glowIntensity();
     final double size = widget.size;
-    final double radius = size * 0.18;
 
-    // Skirt: the visible side wall under the top face. It is tall at rest and
-    // compresses as the cap is pressed, so the cap looks physically shorter.
-    final double restSkirt = size * 0.16;
-    final double skirt = restSkirt * (1.0 - 0.7 * depth);
-
-    // The top face travels down and shrinks while held.
+    // The keycap travels down and shrinks while held; the gap to the housing
+    // closes as it sinks.
     final double travel = size * Keycap.pressTravelFraction * depth;
-    final double topScale = 1.0 - Keycap.pressScaleDrop * depth;
+    final double capScale = 1.0 - Keycap.pressScaleDrop * depth;
 
     // Floor shadow shrinks toward the base as the cap sinks (less air gap).
     final double shadowScale = 1.0 - 0.45 * depth;
@@ -296,14 +307,14 @@ class _KeycapState extends State<Keycap> with TickerProviderStateMixin {
     return Stack(
       alignment: Alignment.center,
       children: <Widget>[
-        // Floor shadow, pinned near the base of the cap; shrinks on press.
+        // Floor shadow, pinned near the base of the plate; shrinks on press.
         Align(
-          alignment: const Alignment(0, 0.92),
+          alignment: const Alignment(0, 0.94),
           child: Transform.scale(
             scaleX: shadowScale,
             scaleY: shadowScale * 0.5,
             child: Container(
-              width: size * 0.74,
+              width: size * 0.8,
               height: size * 0.16,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(size * 0.08),
@@ -319,32 +330,27 @@ class _KeycapState extends State<Keycap> with TickerProviderStateMixin {
             ),
           ),
         ),
-        // The side skirt: drawn as a shorter rounded body sitting under the top
-        // face, offset down so its lower edge stays put while the top compresses
-        // toward it on press.
-        Transform.translate(
-          offset: Offset(0, skirt * 0.5),
-          child: Container(
-            width: size * 0.86,
-            height: size * 0.86,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(radius),
-              gradient: const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: <Color>[AppColors.keycapBase, AppColors.keycapEdge],
-              ),
-              border: Border.all(color: AppColors.keycapEdge, width: 2),
+        // Plate + switch housing + stem + underglow, painted as a unit. The
+        // underglow flares with the press depth so the base "lights up".
+        Positioned.fill(
+          child: CustomPaint(
+            key: Keycap.switchLayerKey,
+            painter: KeycapSwitchPainter(
+              stemColor: widget.stemColor,
+              ledColor: ledColor,
+              glow: glow,
+              depth: depth,
             ),
           ),
         ),
-        // The top face: travels down + shrinks on press. The scale Transform is
-        // what observers (and tests) read as the pressed visual state.
+        // The sculpted keycap, seated on the stem. It travels down + shrinks on
+        // press. The scale Transform is what observers (and tests) read as the
+        // pressed visual state; the resting transform leaves scale at 1.0.
         Transform.translate(
           offset: Offset(0, travel),
           child: Transform.scale(
-            scale: topScale,
-            child: _buildTopFace(context, ledColor, glow, radius),
+            scale: capScale,
+            child: _buildKeycap(context, ledColor, glow),
           ),
         ),
         // One LedRipple per active press, sized to the cap.
@@ -361,25 +367,24 @@ class _KeycapState extends State<Keycap> with TickerProviderStateMixin {
     );
   }
 
-  /// The dished top face of the cap: a rounded square with a recessed center
-  /// that catches the LED color, the surrounding glow shadow, and the legend.
+  /// The sculpted, glossy keycap that sits on the stem: a rounded square with a
+  /// dished top, a glossy crown highlight, a darker lower lip (side wall), an
+  /// [ledColor] rim glow, and an optional subtle legend.
   ///
   /// The outer [Container] carries [Keycap.innerCapKey] and the LED glow as its
   /// first [BoxShadow] (read by tests for the live glow color/intensity).
-  Widget _buildTopFace(
-    BuildContext context,
-    Color ledColor,
-    double glow,
-    double radius,
-  ) {
-    final double topSize = widget.size * 0.78;
+  Widget _buildKeycap(BuildContext context, Color ledColor, double glow) {
+    final double size = widget.size;
+    final double capSize = size * 0.70;
+    final double radius = size * 0.16;
+
     return Container(
       key: Keycap.innerCapKey,
-      width: topSize,
-      height: topSize,
+      width: capSize,
+      height: capSize,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(radius),
-        // Sculpted top: bright crown fading to a darker lower lip.
+        // Sculpted body: bright crown fading to a darker lower lip / side wall.
         gradient: const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -388,64 +393,273 @@ class _KeycapState extends State<Keycap> with TickerProviderStateMixin {
             AppColors.keycapBase,
             AppColors.keycapEdge,
           ],
-          stops: <double>[0.0, 0.72, 1.0],
+          stops: <double>[0.0, 0.66, 1.0],
         ),
         border: Border.all(color: AppColors.keycapEdge, width: 2),
         boxShadow: <BoxShadow>[
-          // The LED glow — first shadow; stronger/tighter while pressed/flaring.
+          // The LED rim glow — first shadow; stronger/tighter while
+          // pressed/flaring. (Tests read this first shadow.)
           BoxShadow(
             color: ledColor.withValues(alpha: glow),
-            blurRadius: 24 + 18 * glow,
+            blurRadius: 22 + 18 * glow,
             spreadRadius: 1 + 4 * glow,
           ),
-          // A subtle drop under the top face, so it reads as a raised lid.
+          // A subtle drop under the cap so it reads as raised off the housing.
           const BoxShadow(
             color: Colors.black54,
-            blurRadius: 10,
-            offset: Offset(0, 4),
+            blurRadius: 12,
+            offset: Offset(0, 5),
           ),
         ],
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
-        child: DecoratedBox(
-          // Dished center: a radial well that is darker in the middle and
-          // catches a ring of the LED color, giving the top a sculpted "scoop".
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(radius * 0.7),
-            gradient: RadialGradient(
-              radius: 0.85,
-              colors: <Color>[
-                AppColors.keycapEdge.withValues(alpha: 0.55),
-                AppColors.keycapBase.withValues(alpha: 0.0),
-                ledColor.withValues(alpha: 0.12 + 0.20 * glow),
-              ],
-              stops: const <double>[0.0, 0.6, 1.0],
-            ),
-          ),
-          child: Center(
-            child: widget.label.isEmpty
-                ? const SizedBox.shrink()
-                : Text(
-                    widget.label,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: widget.size * 0.16,
-                      fontWeight: FontWeight.w700,
-                      height: 1.0,
-                      shadows: <Shadow>[
-                        Shadow(
-                          color: ledColor.withValues(alpha: glow),
-                          blurRadius: 12 * glow,
-                        ),
-                      ],
-                    ),
+        child: Stack(
+          children: <Widget>[
+            // Dished center: a radial well, darker in the middle, catching a
+            // ring of the LED color — the OEM "scoop".
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(radius * 0.7),
+                  gradient: RadialGradient(
+                    radius: 0.85,
+                    colors: <Color>[
+                      AppColors.keycapEdge.withValues(alpha: 0.55),
+                      AppColors.keycapBase.withValues(alpha: 0.0),
+                      ledColor.withValues(alpha: 0.10 + 0.20 * glow),
+                    ],
+                    stops: const <double>[0.0, 0.6, 1.0],
                   ),
-          ),
+                ),
+              ),
+            ),
+            // Glossy crown highlight: a soft white sheen on the upper third,
+            // giving the cap its plastic-gloss read.
+            Positioned(
+              left: capSize * 0.10,
+              right: capSize * 0.10,
+              top: capSize * 0.04,
+              height: capSize * 0.30,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(radius * 0.6),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: <Color>[
+                      AppColors.textPrimary.withValues(alpha: 0.16),
+                      AppColors.textPrimary.withValues(alpha: 0.0),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Optional subtle legend (form-first; very faint).
+            if (widget.label.isNotEmpty)
+              Center(
+                child: Text(
+                  widget.label,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppColors.textPrimary.withValues(alpha: 0.85),
+                    fontSize: size * 0.12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                    height: 1.0,
+                    shadows: <Shadow>[
+                      Shadow(
+                        color: ledColor.withValues(alpha: glow),
+                        blurRadius: 12 * glow,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
+  }
+}
+
+/// Paints the plate, the Cherry-MX-style switch housing, the cross stem, and the
+/// LED underglow leaking out from under the switch — everything *below* the
+/// keycap. Driven by the press [depth] so the underglow flares as the key sinks.
+class KeycapSwitchPainter extends CustomPainter {
+  const KeycapSwitchPainter({
+    required this.stemColor,
+    required this.ledColor,
+    required this.glow,
+    required this.depth,
+  });
+
+  /// Color of the cross stem (switch identity).
+  final Color stemColor;
+
+  /// Current effective LED color (already hue-cycled if applicable).
+  final Color ledColor;
+
+  /// Glow intensity in [0, 1].
+  final double glow;
+
+  /// Press depth in [0, 1]; brightens the underglow as the key sinks.
+  final double depth;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double s = size.shortestSide;
+    final Offset center = size.center(Offset.zero);
+
+    // Geometry: the plate fills most of the box; the housing is centered and a
+    // bit smaller; the stem cross is centered in the housing.
+    final double plateSide = s * 0.92;
+    final double housingSide = s * 0.62;
+    final Rect plateRect = Rect.fromCenter(
+      center: center,
+      width: plateSide,
+      height: plateSide,
+    );
+    final Rect housingRect = Rect.fromCenter(
+      center: center,
+      width: housingSide,
+      height: housingSide,
+    );
+
+    // 1) LED underglow: a soft radial bloom under the switch that intensifies
+    // with the press. Drawn first so the plate/housing sit on top of it.
+    final double underAlpha = (0.35 + 0.45 * depth).clamp(0.0, 1.0) * glow;
+    final Paint underglow = Paint()
+      ..shader = RadialGradient(
+        colors: <Color>[
+          ledColor.withValues(alpha: underAlpha),
+          ledColor.withValues(alpha: 0.0),
+        ],
+      ).createShader(Rect.fromCircle(center: center, radius: plateSide * 0.62));
+    canvas.drawCircle(center, plateSide * 0.62, underglow);
+
+    // 2) Plate: dark rounded base.
+    final RRect plate = RRect.fromRectAndRadius(
+      plateRect,
+      Radius.circular(s * 0.16),
+    );
+    final Paint platePaint = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: <Color>[AppColors.surfaceHi, AppColors.bg],
+      ).createShader(plateRect);
+    canvas.drawRRect(plate, platePaint);
+    canvas.drawRRect(
+      plate,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5
+        ..color = AppColors.keycapEdge,
+    );
+
+    // A thin ring of LED color leaking from the seam between plate and housing.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        housingRect.inflate(s * 0.03),
+        Radius.circular(s * 0.10),
+      ),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3 + 4 * depth
+        ..color = ledColor.withValues(alpha: (0.25 + 0.4 * depth) * glow)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+    );
+
+    // 3) Switch housing: dark charcoal Cherry-MX top housing with stepped
+    // corner notches and a lighter top bevel.
+    const Color housingColor = Color(0xFF2A2A33);
+    final RRect housing = RRect.fromRectAndRadius(
+      housingRect,
+      Radius.circular(s * 0.06),
+    );
+    canvas.drawRRect(
+      housing,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: <Color>[housingColor, Color(0xFF1C1C24)],
+        ).createShader(housingRect),
+    );
+    // Top bevel highlight (the MX housing's lit upper edge).
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(
+          housingRect.left,
+          housingRect.top,
+          housingRect.width,
+          housingRect.height * 0.18,
+        ),
+        Radius.circular(s * 0.06),
+      ),
+      Paint()..color = AppColors.textPrimary.withValues(alpha: 0.05),
+    );
+    // Characteristic stepped notches: small squares at each housing corner.
+    final double notch = housingSide * 0.16;
+    final Paint notchPaint = Paint()..color = const Color(0xFF14141A);
+    for (final Offset corner in <Offset>[
+      housingRect.topLeft,
+      housingRect.topRight,
+      housingRect.bottomLeft,
+      housingRect.bottomRight,
+    ]) {
+      final double nx = corner.dx < center.dx ? corner.dx : corner.dx - notch;
+      final double ny = corner.dy < center.dy ? corner.dy : corner.dy - notch;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(nx, ny, notch, notch),
+          Radius.circular(s * 0.015),
+        ),
+        notchPaint,
+      );
+    }
+
+    // 4) The cross "+" stem in stemColor, rising from the housing center. A
+    // recessed dark well sits behind it so the stem reads as inset.
+    final double wellR = housingSide * 0.30;
+    canvas.drawCircle(center, wellR, Paint()..color = const Color(0xFF101016));
+    final double armLong = housingSide * 0.42;
+    final double armShort = housingSide * 0.12;
+    final Paint stemPaint = Paint()..color = stemColor;
+    final Paint stemHi = Paint()
+      ..color = AppColors.textPrimary.withValues(alpha: 0.18);
+    // Horizontal then vertical arm → a plus sign.
+    final RRect hArm = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: center, width: armLong, height: armShort),
+      Radius.circular(armShort * 0.3),
+    );
+    final RRect vArm = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: center, width: armShort, height: armLong),
+      Radius.circular(armShort * 0.3),
+    );
+    canvas.drawRRect(hArm, stemPaint);
+    canvas.drawRRect(vArm, stemPaint);
+    // A small top-left highlight on the stem for a molded-plastic read.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: center.translate(0, -armShort * 0.18),
+          width: armLong * 0.9,
+          height: armShort * 0.4,
+        ),
+        Radius.circular(armShort * 0.2),
+      ),
+      stemHi,
+    );
+  }
+
+  @override
+  bool shouldRepaint(KeycapSwitchPainter oldDelegate) {
+    return oldDelegate.stemColor != stemColor ||
+        oldDelegate.ledColor != ledColor ||
+        oldDelegate.glow != glow ||
+        oldDelegate.depth != depth;
   }
 }
 

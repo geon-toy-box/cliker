@@ -6,13 +6,21 @@ import 'package:cliker/services/haptics.dart';
 import 'package:cliker/theme/app_colors.dart';
 import 'package:cliker/theme/app_spacing.dart';
 import 'package:cliker/widgets/keycap.dart';
+import 'package:cliker/widgets/rgb_wheel.dart';
 import 'package:cliker/widgets/settings_sheet.dart';
 import 'package:cliker/widgets/stats_panel.dart';
+import 'package:cliker/widgets/switch_menu.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// The single screen of the app: a tappable [Keycap] flanked by the [StatsPanel]
-/// above and a switch selector below.
+/// The single screen of the app, in the MZ (holographic / glossy / bubbly)
+/// visual language.
+///
+/// Top bar: a holographic "cliker" wordmark, a right-aligned switch-menu button
+/// (opens [SwitchMenu]) and a settings gear (opens [SettingsSheet]). Below it
+/// the [StatsPanel] hero shows the giant holographic click total and the RPM
+/// pill. The center is the realistic switch+keycap; the bottom is the
+/// [RgbWheel] LED color picker.
 ///
 /// Tapping the keycap plays the selected switch's press/release click, fires a
 /// matching haptic, and registers the click in [statsProvider]. The sound/haptic
@@ -27,8 +35,12 @@ class HomeScreen extends ConsumerWidget {
   static const Key totalStatKey = StatsPanel.totalStatKey;
   static const Key rpmStatKey = StatsPanel.rpmStatKey;
 
-  /// Key prefix for switch-selector chips; full key is `Key('switch-chip-<id>')`.
-  static Key switchChipKey(String id) => Key('switch-chip-$id');
+  /// Key prefix for switch-menu rows; re-exported from [SwitchMenu] so existing
+  /// switch-selection tests keep reaching chips by the same key.
+  static Key switchChipKey(String id) => SwitchMenu.switchChipKey(id);
+
+  /// Key on the switch-menu entry-point button (opens [SwitchMenu]).
+  static const Key switchMenuButtonKey = Key('switch-menu-button');
 
   /// Key on the settings entry-point button (opens [SettingsSheet]).
   static const Key settingsButtonKey = Key('settings-button');
@@ -37,6 +49,7 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final Settings settings = ref.watch(settingsProvider);
     final SwitchType selected = SwitchCatalog.byId(settings.selectedSwitchId);
+    final Color ledColor = Color(settings.ledColorArgb);
 
     // Mirror the persisted toggles onto the shared services. Reading the
     // providers here keeps the flags in sync on every settings change without a
@@ -68,34 +81,29 @@ class HomeScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(
             children: <Widget>[
-              // Top bar: the settings entry point, right-aligned above the
-              // stats so it stays clear of the central keycap.
-              Align(
-                alignment: Alignment.centerRight,
-                child: IconButton(
-                  key: HomeScreen.settingsButtonKey,
-                  icon: const Icon(Icons.settings_outlined),
-                  color: AppColors.textMuted,
-                  tooltip: '설정',
-                  onPressed: () => SettingsSheet.show(context),
-                ),
-              ),
+              _TopBar(ledColor: ledColor),
+              const SizedBox(height: AppSpacing.md),
               const StatsPanel(),
               Expanded(
                 child: Center(
                   child: Keycap(
-                    ledColor: Color(settings.ledColorArgb),
+                    ledColor: ledColor,
+                    stemColor: selected.stemColor,
                     ledMode: settings.ledMode,
-                    label: selected.nameEn,
+                    label: selected.nameKo,
                     onPressDown: handlePressDown,
                     onPressUp: handlePressUp,
                   ),
                 ),
               ),
-              _SwitchSelector(
-                selectedId: settings.selectedSwitchId,
-                onSelect: (String id) =>
-                    ref.read(settingsProvider.notifier).selectSwitch(id),
+              const SizedBox(height: AppSpacing.md),
+              // LED color wheel — picks a vivid hue and pushes it into settings,
+              // so the keycap glow/accents follow live and persist.
+              _LedWheelPanel(
+                color: ledColor,
+                onColorChanged: (Color c) => ref
+                    .read(settingsProvider.notifier)
+                    .setLedColor(c.toARGB32()),
               ),
             ],
           ),
@@ -105,113 +113,183 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-/// The bottom switch selector: all eleven catalog switches as chips in a single
-/// horizontally-scrollable row. The selected chip is highlighted with the
-/// switch's stem color; tapping another chip reports it via [onSelect].
-class _SwitchSelector extends StatelessWidget {
-  const _SwitchSelector({required this.selectedId, required this.onSelect});
+/// The top bar: the holographic wordmark on the left, the switch-menu button and
+/// settings gear on the right.
+class _TopBar extends StatelessWidget {
+  const _TopBar({required this.ledColor});
 
-  final String selectedId;
-  final ValueChanged<String> onSelect;
+  final Color ledColor;
 
   @override
   Widget build(BuildContext context) {
-    // A SingleChildScrollView + Row (rather than a lazy ListView) keeps every
-    // chip in the tree at once, so all eleven are present and reachable even
-    // while some are scrolled off-screen; the row still scrolls horizontally.
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-      child: Row(
-        children: <Widget>[
-          for (int i = 0; i < SwitchCatalog.all.length; i++) ...<Widget>[
-            if (i > 0) const SizedBox(width: AppSpacing.sm),
-            _SwitchChip(
-              switchType: SwitchCatalog.all[i],
-              selected: SwitchCatalog.all[i].id == selectedId,
-              onTap: () => onSelect(SwitchCatalog.all[i].id),
-            ),
-          ],
-        ],
+    return Row(
+      children: <Widget>[
+        const _Wordmark(),
+        const Spacer(),
+        // Switch ("축") menu button — glassy pill so it reads as tappable.
+        _GlassIconButton(
+          buttonKey: HomeScreen.switchMenuButtonKey,
+          icon: Icons.tune_rounded,
+          label: '축',
+          tooltip: '축 선택',
+          accent: ledColor,
+          onPressed: () => SwitchMenu.show(context),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        IconButton(
+          key: HomeScreen.settingsButtonKey,
+          icon: const Icon(Icons.settings_outlined),
+          color: AppColors.textMuted,
+          tooltip: '설정',
+          onPressed: () => SettingsSheet.show(context),
+        ),
+      ],
+    );
+  }
+}
+
+/// The "cliker" wordmark filled with the holographic [AppColors.holoSweep]
+/// gradient via a [ShaderMask].
+class _Wordmark extends StatelessWidget {
+  const _Wordmark();
+
+  @override
+  Widget build(BuildContext context) {
+    return ShaderMask(
+      blendMode: BlendMode.srcIn,
+      shaderCallback: (Rect bounds) => const LinearGradient(
+        colors: AppColors.holoSweep,
+      ).createShader(bounds),
+      child: const Text(
+        'cliker',
+        style: TextStyle(
+          color: AppColors.textPrimary,
+          fontSize: 28,
+          fontWeight: FontWeight.w900,
+          letterSpacing: -1,
+        ),
       ),
     );
   }
 }
 
-/// One selectable switch chip: a stem-color dot above the Korean name, in a
-/// pill that lights up in the stem color when selected. When selected it also
-/// shows the actuation force/kind beneath the name.
-class _SwitchChip extends StatelessWidget {
-  const _SwitchChip({
-    required this.switchType,
-    required this.selected,
-    required this.onTap,
+/// A glassy pill icon-button used for the switch-menu entry point.
+class _GlassIconButton extends StatelessWidget {
+  const _GlassIconButton({
+    required this.buttonKey,
+    required this.icon,
+    required this.label,
+    required this.tooltip,
+    required this.accent,
+    required this.onPressed,
   });
 
-  final SwitchType switchType;
-  final bool selected;
-  final VoidCallback onTap;
-
-  /// Short Korean label for each actuation family, shown on the selected chip.
-  static const Map<SwitchKind, String> _kindLabels = <SwitchKind, String>{
-    SwitchKind.clicky: '클릭',
-    SwitchKind.tactile: '텍타일',
-    SwitchKind.linear: '리니어',
-  };
+  final Key buttonKey;
+  final IconData icon;
+  final String label;
+  final String tooltip;
+  final Color accent;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     final TextTheme textTheme = Theme.of(context).textTheme;
-    return InkWell(
-      key: HomeScreen.switchChipKey(switchType.id),
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.pill),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
-        ),
-        decoration: BoxDecoration(
-          color: selected
-              ? switchType.stemColor.withValues(alpha: 0.22)
-              : AppColors.surface,
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          key: buttonKey,
+          onTap: onPressed,
           borderRadius: BorderRadius.circular(AppRadius.pill),
-          border: Border.all(
-            color: selected ? switchType.stemColor : AppColors.surfaceHi,
-            width: selected ? 2 : 1,
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.textPrimary.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              border: Border.all(color: accent.withValues(alpha: 0.4)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(icon, size: 18, color: AppColors.textPrimary),
+                const SizedBox(width: AppSpacing.xs),
+                Text(
+                  label,
+                  style: textTheme.labelLarge?.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Container(
-              width: 14,
-              height: 14,
-              decoration: BoxDecoration(
-                color: switchType.stemColor,
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              switchType.nameKo,
-              style: textTheme.labelMedium?.copyWith(
-                color: selected ? AppColors.textPrimary : AppColors.textMuted,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-              ),
-            ),
-            if (selected)
-              Text(
-                '${_kindLabels[switchType.kind]} · ${switchType.forceCn}cN',
-                style: textTheme.labelSmall?.copyWith(
-                  color: AppColors.textMuted,
-                ),
-              ),
-          ],
+      ),
+    );
+  }
+}
+
+/// The bottom LED panel: a glass card framing the [RgbWheel] with a caption.
+class _LedWheelPanel extends StatelessWidget {
+  const _LedWheelPanel({required this.color, required this.onColorChanged});
+
+  final Color color;
+  final ValueChanged<Color> onColorChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.textPrimary.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: AppColors.textPrimary.withValues(alpha: 0.08),
         ),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: color.withValues(alpha: 0.18),
+            blurRadius: 28,
+            spreadRadius: -10,
+          ),
+        ],
+      ),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(
+                  'LED 색',
+                  style: textTheme.labelLarge?.copyWith(
+                    color: AppColors.textMuted,
+                    letterSpacing: 2,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  '휠을 돌려 색을 골라보세요',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          RgbWheel(color: color, onColorChanged: onColorChanged, size: 120),
+        ],
       ),
     );
   }

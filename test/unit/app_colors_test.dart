@@ -30,6 +30,12 @@ void main() {
       expect(AppColors.neonYellow.toARGB32(), 0xFFFFE600);
     });
 
+    test('holographic sweep tokens (T013 MZ)', () {
+      expect(AppColors.holoMagenta.toARGB32(), 0xFFFF2FB9);
+      expect(AppColors.holoViolet.toARGB32(), 0xFF8B5CFF);
+      expect(AppColors.holoCyan.toARGB32(), 0xFF2FE6FF);
+    });
+
     test('switch-stem tokens', () {
       expect(AppColors.switchBlue.toARGB32(), 0xFF3B82F6);
       expect(AppColors.switchBrown.toARGB32(), 0xFF92400E);
@@ -74,6 +80,22 @@ void main() {
         0xFFB026FF,
         0xFFFF6B1A,
         0xFFFFE600,
+      ]);
+    });
+  });
+
+  group('AppColors.holoSweep (T013 MZ)', () {
+    test('is magenta → violet → cyan in order', () {
+      expect(AppColors.holoSweep, hasLength(3));
+      expect(AppColors.holoSweep, <Color>[
+        AppColors.holoMagenta,
+        AppColors.holoViolet,
+        AppColors.holoCyan,
+      ]);
+      expect(AppColors.holoSweep.map((Color c) => c.toARGB32()).toList(), <int>[
+        0xFFFF2FB9,
+        0xFF8B5CFF,
+        0xFF2FE6FF,
       ]);
     });
   });

@@ -20,6 +20,12 @@ abstract final class AppColors {
   static const Color textPrimary = Color(0xFFFFFFFF);
   static const Color textMuted = Color(0xFF8A8A99);
 
+  // Holographic sweep tokens (MZ redesign). Used for the wordmark, the hero
+  // click-count fill, and glass accents. Exact ARGB per the design lead.
+  static const Color holoMagenta = Color(0xFFFF2FB9);
+  static const Color holoViolet = Color(0xFF8B5CFF);
+  static const Color holoCyan = Color(0xFF2FE6FF);
+
   // Neon LED palette.
   static const Color neonCyan = Color(0xFF00E5FF);
   static const Color neonMagenta = Color(0xFFFF2D95);
@@ -53,5 +59,13 @@ abstract final class AppColors {
     neonPurple,
     neonOrange,
     neonYellow,
+  ];
+
+  /// The holographic sweep stops, in order, for gradient fills (wordmark, hero
+  /// number, glass accents). Magenta → violet → cyan.
+  static const List<Color> holoSweep = <Color>[
+    holoMagenta,
+    holoViolet,
+    holoCyan,
   ];
 }
