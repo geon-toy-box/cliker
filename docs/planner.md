@@ -39,6 +39,7 @@ tags: [toybox, project, planner]
 | M1 | Core clicker MVP | 단일 대형 키캡 탭 → 타건음+진동+LED+카운터가 저지연으로 동작하고 스위치 선택/통계가 영구 저장되는 동작하는 앱 | DONE (T001–T006 VERIFIED, 에뮬레이터 런타임 스모크 통과) |
 | M2 | Polish & customization | LED 효과 모드(리플·RGB 사이클·반응형), 색상 커스터마이즈, 설정 화면, 통계 패널(누적·세션·CPM·최고기록) | DONE (T007,T008 VERIFIED) |
 | M3 | Play Store readiness | 앱 아이콘/이름, app id 확정, 릴리스 서명(keystore), 버전, AAB 빌드, 권한 점검, 스토어 등록 메타데이터·개인정보처리방침 | DONE (T009,T010,T011 VERIFIED) |
+| M4 | 스위치 11종 확장 + UI 개편 | 체리 MX 11종, 통계 2개(전체·RPM), 진짜 키캡 모양+확실한 눌림, 11종 가로 스크롤 선택기 | TODO |
 
 ## Task backlog
 > Statuses: TODO · IN_PROGRESS · BLOCKED · NEEDS_FIX · VERIFIED · DONE
@@ -57,6 +58,7 @@ tags: [toybox, project, planner]
 | T009 | App identity: launcher icon + app name + versioning | M3 | T006 | DONE | qa.md PASS · 8d78383 |
 | T010 | Release build: signing config + AAB + permissions audit | M3 | T009 | DONE | qa.md PASS · 89027f3 |
 | T011 | Store listing metadata + privacy policy | M3 | T010 | DONE | qa.md PASS · 20d13b7 |
+| T012 | 스위치 11종 확장 + UI 개편(키캡·통계 2개·선택기) | M4 | — | TODO | — |
 
 ## Decisions log
 <!-- Architecture/product decisions, dated, with the reasoning. Prevents re-litigating. -->

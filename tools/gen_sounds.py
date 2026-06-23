@@ -14,15 +14,21 @@ cliker는 외부 음원을 받지 않고 이 스크립트로 모든 타건음을
 형식:
     44100 Hz, mono, 16-bit PCM, 60–160 ms.
 
-설계:
-    각 클립 = 짧은 노이즈 트랜지언트(클릭) × 빠른 지수 감쇠 엔벨로프
-             + 감쇠 사인파 "바디" 공명(들).
-    스위치별 파라미터로 음색을 구분한다:
-        blue  = 밝고 날카로운 더블 틱(클릭),
+설계 (실제 기계식 스위치 음에 가깝게):
+    실제 타건음 = 스템/하우징이 부딪치는 "딱/탁" 임팩트(광대역, 매우 짧음)
+                 + 키캡·하우징·플레이트가 울리는 공명 모드(짧게 감쇠하는 사인 다발)
+                 + (다운스트로크 바텀아웃의) 저역 "톡" 무게.
+    이를 모델링한다:
+        add_impact : 한쪽 극(밝게=하이패스 / 어둡게=로우패스)으로 색을 입힌
+                     노이즈 버스트 + 초고속 지수 감쇠 → "딱/탁" 어택.
+        add_modes  : 여러 개의 짧게 감쇠하는 사인 = 플라스틱 공명 색(단일 톤 '삐'가
+                     아니라 '탁'의 음색). 저역 모드 하나가 바텀아웃 무게가 된다.
+    스위치 캐릭터:
+        blue  = 밝은 임팩트 + 별도의 날카로운 클릭자켓 "click" 스냅(고역),
         brown = 중역 텍타일 "톡",
-        red   = 조용한 리니어,
-        black = 저역 묵직.
-    down은 up보다 약간 크고 낮게, 릴리스(up)는 더 짧고 높게 만든다.
+        red   = 조용하고 부드러운 리니어(살짝 어둡게),
+        black = 묵직·저역 강조 리니어.
+    down(바텀아웃)은 길고/낮고/크게, up(탑아웃/릴리스)은 짧고/높고/작게.
 
 표준 라이브러리만 사용한다: wave, struct, math, random, os. (numpy/서드파티 금지)
 """
@@ -44,6 +50,16 @@ _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_DIR = os.path.normpath(os.path.join(_THIS_DIR, "..", "assets", "sounds"))
 
 
+def _one_pole_lowpass(samples, a):
+    """단순 1-pole 로우패스. a∈(0,1)이 클수록 컷오프가 높다(덜 어둡다)."""
+    y = 0.0
+    out = [0.0] * len(samples)
+    for i, x in enumerate(samples):
+        y += a * (x - y)
+        out[i] = y
+    return out
+
+
 class Buffer:
     """가산 합성을 위한 부동소수 모노 샘플 버퍼."""
 
@@ -51,27 +67,49 @@ class Buffer:
         self.length = int(round(SAMPLE_RATE * duration_s))
         self.data = [0.0] * self.length
 
-    def add_noise_transient(self, rng, amp, decay_s, start_s=0.0):
-        """지수 감쇠 엔벨로프를 가진 화이트 노이즈 버스트(클릭)를 더한다."""
-        start = int(round(start_s * SAMPLE_RATE))
-        decay_samples = max(1.0, decay_s * SAMPLE_RATE)
-        for i in range(start, self.length):
-            env = math.exp(-(i - start) / decay_samples)
-            if env < 1e-4:
-                break
-            self.data[i] += amp * env * (rng.random() * 2.0 - 1.0)
+    def add_impact(self, rng, amp, decay_s, tone, start_s=0.0):
+        """색을 입힌 노이즈 버스트(스템/하우징 충돌 "딱/탁")를 더한다.
 
-    def add_sine_body(self, freq, amp, decay_s, start_s=0.0):
-        """감쇠 사인파 공명("바디")을 더한다."""
+        tone: 'bright' = 하이패스(밝고 날카롭게), 'dark' = 로우패스(둔탁하게),
+              'mid' = 약한 하이패스(중역 위주). decay_s는 매우 짧게(1–6 ms) 줘서
+        지속음이 아닌 어택으로 들리게 한다.
+        """
         start = int(round(start_s * SAMPLE_RATE))
-        decay_samples = max(1.0, decay_s * SAMPLE_RATE)
-        two_pi_f = 2.0 * math.pi * freq
-        for i in range(start, self.length):
-            n = i - start
-            env = math.exp(-n / decay_samples)
+        if start >= self.length:
+            return
+        decay = max(1.0, decay_s * SAMPLE_RATE)
+        n_len = min(self.length - start, int(decay * 8) + 1)
+        noise = [rng.random() * 2.0 - 1.0 for _ in range(n_len)]
+        if tone == "bright":
+            lp = _one_pole_lowpass(noise, 0.55)
+            noise = [n - l for n, l in zip(noise, lp)]  # 하이패스 = 원본-로우패스
+        elif tone == "dark":
+            noise = _one_pole_lowpass(noise, 0.20)
+        elif tone == "mid":
+            lp = _one_pole_lowpass(noise, 0.65)
+            noise = [n - 0.5 * l for n, l in zip(noise, lp)]
+        for i in range(n_len):
+            env = math.exp(-i / decay)
             if env < 1e-4:
                 break
-            self.data[i] += amp * env * math.sin(two_pi_f * n / SAMPLE_RATE)
+            self.data[start + i] += amp * env * noise[i]
+
+    def add_modes(self, modes, start_s=0.0):
+        """공명 모드(짧게 감쇠하는 사인 다발)를 더한다 — 플라스틱 "탁"의 음색.
+
+        modes: (freq_hz, amp, decay_s) 목록. 임팩트가 t=start에서 모드들을 동시
+        여기(excite)시키므로 위상 0에서 시작한다(무작위성 미사용 → 결정성 단순).
+        """
+        start = int(round(start_s * SAMPLE_RATE))
+        for freq, amp, decay_s in modes:
+            decay = max(1.0, decay_s * SAMPLE_RATE)
+            w = 2.0 * math.pi * freq / SAMPLE_RATE
+            for i in range(start, self.length):
+                n = i - start
+                env = math.exp(-n / decay)
+                if env < 1e-4:
+                    break
+                self.data[i] += amp * env * math.sin(w * n)
 
     def normalize(self, peak):
         """버퍼를 [-peak, peak]로 스케일한다(클리핑 없이 헤드룸 확보)."""
@@ -98,111 +136,118 @@ class Buffer:
 
 
 # 스위치별 합성 파라미터.
-#   duration       : 클립 길이(초). down/up 각각.
-#   peak           : 정규화 목표 진폭(0–1). down이 up보다 크다.
-#   clicks         : (시작시각s, 노이즈진폭, 노이즈감쇠s) 트랜지언트 목록.
-#   bodies         : (주파수Hz, 진폭, 감쇠s, 시작시각s) 사인 바디 공명 목록.
-# down은 약간 길고/낮고/크게, up은 짧고/높고/작게.
+#   duration : 클립 길이(초).
+#   peak     : 정규화 목표 진폭(0–1). down이 up보다 크다.
+#   impacts  : (시작s, 진폭, 감쇠s, tone) 노이즈 임팩트 목록 — "딱/탁" 어택.
+#   modes    : (주파수Hz, 진폭, 감쇠s) 공명 모드 목록 — 첫 항목(저역)이 바텀아웃 무게.
 SWITCH_PARAMS = {
     "blue": {
-        # 밝고 날카로운 더블 틱: 두 번의 노이즈 클릭 + 고역 바디.
+        # 밝은 임팩트 + 별도의 날카로운 클릭자켓 스냅(고역) → 또렷한 "딸깍".
         "down": {
-            "duration": 0.110,
-            "peak": 0.92,
-            "clicks": [
-                (0.000, 1.0, 0.0016),
-                (0.012, 0.7, 0.0012),
+            "duration": 0.100,
+            "peak": 0.95,
+            "impacts": [
+                (0.0000, 1.00, 0.0018, "bright"),
+                (0.0060, 0.85, 0.0011, "bright"),  # 클릭자켓 스냅
             ],
-            "bodies": [
-                (2600.0, 0.30, 0.020, 0.000),
-                (4200.0, 0.18, 0.012, 0.012),
+            "modes": [
+                (720.0, 0.10, 0.018),
+                (1850.0, 0.12, 0.011),
+                (2900.0, 0.10, 0.009),
+                (4300.0, 0.06, 0.006),
             ],
         },
         "up": {
-            "duration": 0.075,
-            "peak": 0.70,
-            "clicks": [
-                (0.000, 0.85, 0.0011),
-                (0.009, 0.55, 0.0009),
+            "duration": 0.072,
+            "peak": 0.66,
+            "impacts": [
+                (0.0000, 0.80, 0.0013, "bright"),
+                (0.0050, 0.55, 0.0009, "bright"),
             ],
-            "bodies": [
-                (3200.0, 0.22, 0.013, 0.000),
-                (5000.0, 0.14, 0.009, 0.009),
+            "modes": [
+                (1000.0, 0.08, 0.012),
+                (3200.0, 0.10, 0.008),
+                (4800.0, 0.06, 0.006),
             ],
         },
     },
     "brown": {
-        # 중역 텍타일 "톡": 단일 클릭 + 중역 바디.
+        # 중역 텍타일 "톡": 밝지 않은 임팩트 + 중역 모드 + 가벼운 저역 무게.
         "down": {
-            "duration": 0.120,
-            "peak": 0.85,
-            "clicks": [
-                (0.000, 0.85, 0.0028),
+            "duration": 0.112,
+            "peak": 0.86,
+            "impacts": [
+                (0.0000, 0.90, 0.0035, "mid"),
             ],
-            "bodies": [
-                (900.0, 0.45, 0.038, 0.000),
-                (1500.0, 0.22, 0.022, 0.000),
+            "modes": [
+                (190.0, 0.12, 0.026),
+                (520.0, 0.16, 0.024),
+                (980.0, 0.11, 0.016),
+                (1700.0, 0.06, 0.011),
             ],
         },
         "up": {
-            "duration": 0.080,
-            "peak": 0.62,
-            "clicks": [
-                (0.000, 0.70, 0.0020),
+            "duration": 0.076,
+            "peak": 0.58,
+            "impacts": [
+                (0.0000, 0.70, 0.0026, "mid"),
             ],
-            "bodies": [
-                (1200.0, 0.34, 0.022, 0.000),
-                (1900.0, 0.16, 0.014, 0.000),
+            "modes": [
+                (640.0, 0.13, 0.016),
+                (1200.0, 0.09, 0.011),
+                (2100.0, 0.05, 0.008),
             ],
         },
     },
     "red": {
-        # 조용한 리니어: 부드러운 트랜지언트, 차분한 중역 바디.
+        # 조용하고 부드러운 리니어(살짝 어둡게): 둔한 임팩트 + 차분한 저·중역 모드.
         "down": {
-            "duration": 0.105,
-            "peak": 0.62,
-            "clicks": [
-                (0.000, 0.55, 0.0040),
+            "duration": 0.100,
+            "peak": 0.60,
+            "impacts": [
+                (0.0000, 0.70, 0.0042, "dark"),
             ],
-            "bodies": [
-                (820.0, 0.40, 0.034, 0.000),
-                (1300.0, 0.16, 0.020, 0.000),
+            "modes": [
+                (160.0, 0.10, 0.022),
+                (470.0, 0.14, 0.020),
+                (820.0, 0.07, 0.013),
             ],
         },
         "up": {
-            "duration": 0.070,
-            "peak": 0.46,
-            "clicks": [
-                (0.000, 0.45, 0.0030),
+            "duration": 0.064,
+            "peak": 0.42,
+            "impacts": [
+                (0.0000, 0.55, 0.0032, "dark"),
             ],
-            "bodies": [
-                (1050.0, 0.30, 0.020, 0.000),
-                (1600.0, 0.12, 0.013, 0.000),
+            "modes": [
+                (560.0, 0.11, 0.013),
+                (1000.0, 0.06, 0.009),
             ],
         },
     },
     "black": {
-        # 저역 묵직 리니어: 길고 부드러운 트랜지언트, 저역 바디 강조.
+        # 묵직·저역 강조 리니어: 둔하고 긴 임팩트 + 강한 저역 무게.
         "down": {
-            "duration": 0.155,
-            "peak": 0.80,
-            "clicks": [
-                (0.000, 0.65, 0.0055),
+            "duration": 0.132,
+            "peak": 0.82,
+            "impacts": [
+                (0.0000, 0.78, 0.0058, "dark"),
             ],
-            "bodies": [
-                (520.0, 0.55, 0.055, 0.000),
-                (820.0, 0.20, 0.030, 0.000),
+            "modes": [
+                (110.0, 0.20, 0.046),
+                (360.0, 0.15, 0.028),
+                (640.0, 0.08, 0.017),
             ],
         },
         "up": {
-            "duration": 0.095,
-            "peak": 0.58,
-            "clicks": [
-                (0.000, 0.55, 0.0040),
+            "duration": 0.086,
+            "peak": 0.56,
+            "impacts": [
+                (0.0000, 0.62, 0.0040, "dark"),
             ],
-            "bodies": [
-                (680.0, 0.42, 0.030, 0.000),
-                (1050.0, 0.16, 0.018, 0.000),
+            "modes": [
+                (420.0, 0.14, 0.020),
+                (760.0, 0.07, 0.013),
             ],
         },
     },
@@ -217,10 +262,9 @@ PHASE_ORDER = ["down", "up"]
 def synthesize(rng, spec):
     """파라미터 한 세트로 단일 클립을 합성하고 PCM16 바이트를 반환한다."""
     buf = Buffer(spec["duration"])
-    for start_s, amp, decay_s in spec["clicks"]:
-        buf.add_noise_transient(rng, amp, decay_s, start_s)
-    for freq, amp, decay_s, start_s in spec["bodies"]:
-        buf.add_sine_body(freq, amp, decay_s, start_s)
+    for start_s, amp, decay_s, tone in spec["impacts"]:
+        buf.add_impact(rng, amp, decay_s, tone, start_s)
+    buf.add_modes(spec["modes"])
     buf.normalize(spec["peak"])
     return buf.to_pcm16()
 
