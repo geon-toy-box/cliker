@@ -57,3 +57,5 @@ android/key.properties
 android/upload-keystore.jks
 **/*.jks
 **/*.keystore
+flutter/
+.vercel/
