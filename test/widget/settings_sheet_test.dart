@@ -135,8 +135,8 @@ void main() {
       expect(find.byKey(SettingsSheet.sheetKey), findsOneWidget);
       expect(find.byKey(SettingsSheet.soundToggleKey), findsOneWidget);
       expect(find.byKey(SettingsSheet.hapticToggleKey), findsOneWidget);
-      // The six-swatch palette is replaced by the RGB wheel inside the sheet.
-      // (The home screen also has a wheel, so scope the match to the sheet.)
+      // The LED color picker is the RGB wheel inside the sheet (it is the only
+      // wheel now — it was removed from the home screen).
       expect(
         find.descendant(
           of: find.byKey(SettingsSheet.sheetKey),
@@ -220,60 +220,69 @@ void main() {
     );
   });
 
-  group('AC3: RGB wheel updates provider + keycap glow + persists', () {
-    testWidgets('picking a hue on the home wheel recolors the glow + persists', (
-      WidgetTester tester,
-    ) async {
-      final ProviderContainer container = await pumpApp(
-        tester,
-        prefs: prefs,
-        player: player,
-      );
+  group(
+    'AC3: RGB wheel (in settings sheet) updates provider + keycap glow + persists',
+    () {
+      testWidgets('picking a hue in the settings wheel recolors the glow + persists', (
+        WidgetTester tester,
+      ) async {
+        final ProviderContainer container = await pumpApp(
+          tester,
+          prefs: prefs,
+          player: player,
+        );
 
-      // Defaults to neonCyan; the resting glow carries the cyan hue (its alpha
-      // differs from the swatch, so compare only the RGB channels).
-      final int cyan = AppColors.neonCyan.toARGB32();
-      expect(container.read(settingsProvider).ledColorArgb, cyan);
-      expect(
-        keycapGlowColor(tester).toARGB32() & 0x00FFFFFF,
-        cyan & 0x00FFFFFF,
-      );
+        // Defaults to neonCyan; the resting keycap glow carries the cyan hue (its
+        // alpha differs from the swatch, so compare only the RGB channels).
+        final int cyan = AppColors.neonCyan.toARGB32();
+        expect(container.read(settingsProvider).ledColorArgb, cyan);
+        expect(
+          keycapGlowColor(tester).toARGB32() & 0x00FFFFFF,
+          cyan & 0x00FFFFFF,
+        );
 
-      // Tap the bottom-edge of the wheel → hue ≈ 180° (cyan/teal region). The
-      // exact color comes from RgbWheel.hueAt, so derive the expected value the
-      // same way the widget does and compare against it.
-      final Rect wheel = tester.getRect(find.byKey(RgbWheel.wheelKey));
-      final Offset tapPoint = Offset(wheel.center.dx, wheel.bottom - 2);
-      final double expectedHue = RgbWheel.hueAt(
-        tapPoint - wheel.topLeft,
-        wheel.width,
-      );
-      final int expectedArgb = RgbWheel.colorForHue(expectedHue).toARGB32();
+        // The wheel now lives in the settings sheet (it was removed from home).
+        await openSheet(tester);
+        final Finder wheelFinder = find.byKey(RgbWheel.wheelKey);
+        await tester.ensureVisible(wheelFinder);
+        await tester.pumpAndSettle();
 
-      await tester.tapAt(tapPoint);
-      await tester.pump();
+        // Tap the bottom-edge of the wheel → hue ≈ 180° (cyan/teal region). The
+        // exact color comes from RgbWheel.hueAt, so derive the expected value the
+        // same way the widget does and compare against it.
+        final Rect wheel = tester.getRect(wheelFinder);
+        final Offset tapPoint = Offset(wheel.center.dx, wheel.bottom - 2);
+        final double expectedHue = RgbWheel.hueAt(
+          tapPoint - wheel.topLeft,
+          wheel.width,
+        );
+        final int expectedArgb = RgbWheel.colorForHue(expectedHue).toARGB32();
 
-      // Provider updated to exactly the wheel's emitted color.
-      expect(container.read(settingsProvider).ledColorArgb, expectedArgb);
-      // And it is no longer the default cyan.
-      expect(container.read(settingsProvider).ledColorArgb, isNot(cyan));
+        await tester.tapAt(tapPoint);
+        await tester.pump();
 
-      // The keycap glow follows the new color (RGB channels match).
-      expect(
-        keycapGlowColor(tester).toARGB32() & 0x00FFFFFF,
-        expectedArgb & 0x00FFFFFF,
-      );
+        // Provider updated to exactly the wheel's emitted color.
+        expect(container.read(settingsProvider).ledColorArgb, expectedArgb);
+        // And it is no longer the default cyan.
+        expect(container.read(settingsProvider).ledColorArgb, isNot(cyan));
 
-      // Persisted: a fresh container over the same prefs keeps the pick.
-      final SharedPreferences freshPrefs =
-          await SharedPreferences.getInstance();
-      final ProviderContainer second = ProviderContainer(
-        overrides: [sharedPreferencesProvider.overrideWithValue(freshPrefs)],
-      );
-      addTearDown(second.dispose);
-      expect(second.read(settingsProvider).ledColorArgb, expectedArgb);
-    });
-  });
+        // The keycap (behind the sheet) glow follows the new color (RGB matches).
+        expect(
+          keycapGlowColor(tester).toARGB32() & 0x00FFFFFF,
+          expectedArgb & 0x00FFFFFF,
+        );
+
+        // Persisted: a fresh container over the same prefs keeps the pick.
+        final SharedPreferences freshPrefs =
+            await SharedPreferences.getInstance();
+        final ProviderContainer second = ProviderContainer(
+          overrides: [sharedPreferencesProvider.overrideWithValue(freshPrefs)],
+        );
+        addTearDown(second.dispose);
+        expect(second.read(settingsProvider).ledColorArgb, expectedArgb);
+      });
+    },
+  );
 
   group('persistence: mode selection survives a fresh container', () {
     testWidgets('selecting rgbCycle persists', (WidgetTester tester) async {

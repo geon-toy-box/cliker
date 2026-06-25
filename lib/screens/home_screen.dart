@@ -7,7 +7,6 @@ import 'package:cliker/services/haptics.dart';
 import 'package:cliker/theme/app_colors.dart';
 import 'package:cliker/theme/app_spacing.dart';
 import 'package:cliker/widgets/keycap.dart';
-import 'package:cliker/widgets/rgb_wheel.dart';
 import 'package:cliker/widgets/settings_sheet.dart';
 import 'package:cliker/widgets/stats_panel.dart';
 import 'package:cliker/widgets/switch_menu.dart';
@@ -20,8 +19,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Top bar: a holographic "cliker" wordmark, a right-aligned switch-menu button
 /// (opens [SwitchMenu]) and a settings gear (opens [SettingsSheet]). Below it
 /// the [StatsPanel] hero shows the giant holographic click total and the RPM
-/// pill. The center is the realistic switch+keycap; the bottom is the
-/// [RgbWheel] LED color picker.
+/// pill, and the center is the realistic switch+keycap. The LED color is
+/// customized from the [SettingsSheet] (gear icon), not on the home screen.
 ///
 /// Tapping the keycap plays the selected switch's press/release click, fires a
 /// matching haptic, and registers the click in [statsProvider]. The sound/haptic
@@ -118,15 +117,8 @@ class HomeScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.md),
-              // LED color wheel — picks a vivid hue and pushes it into settings,
-              // so the keycap glow/accents follow live and persist.
-              _LedWheelPanel(
-                color: ledColor,
-                onColorChanged: (Color c) => ref
-                    .read(settingsProvider.notifier)
-                    .setLedColor(c.toARGB32()),
-              ),
+              // LED color is customized from the settings sheet (gear icon) — the
+              // home screen stays focused on the keycap.
             ],
           ),
         ),
@@ -250,68 +242,6 @@ class _GlassIconButton extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// The bottom LED panel: a glass card framing the [RgbWheel] with a caption.
-class _LedWheelPanel extends StatelessWidget {
-  const _LedWheelPanel({required this.color, required this.onColorChanged});
-
-  final Color color;
-  final ValueChanged<Color> onColorChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final TextTheme textTheme = Theme.of(context).textTheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.md,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.textPrimary.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: AppColors.textPrimary.withValues(alpha: 0.08),
-        ),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: color.withValues(alpha: 0.18),
-            blurRadius: 28,
-            spreadRadius: -10,
-          ),
-        ],
-      ),
-      child: Row(
-        children: <Widget>[
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Text(
-                  'LED 색',
-                  style: textTheme.labelLarge?.copyWith(
-                    color: AppColors.textMuted,
-                    letterSpacing: 2,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  '휠을 돌려 색을 골라보세요',
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textMuted,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          RgbWheel(color: color, onColorChanged: onColorChanged, size: 120),
-        ],
       ),
     );
   }
