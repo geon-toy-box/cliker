@@ -1,5 +1,6 @@
 import 'package:cliker/app.dart';
 import 'package:cliker/audio/click_sound_player.dart';
+import 'package:cliker/audio/dynamic_click_engine.dart';
 import 'package:cliker/domain/switch_type.dart';
 import 'package:cliker/persistence/settings_store.dart';
 import 'package:cliker/providers/settings_providers.dart';
@@ -244,10 +245,16 @@ void main() {
 
   group('Press wiring: sound + haptics + stats (AC4)', () {
     testWidgets(
-      'press-down plays the down clip, fires a haptic, and registers a click; '
-      'release plays the up clip',
+      'classic mode (dynamic OFF): press-down plays the down clip, fires a '
+      'haptic, registers a click; release plays the up clip',
       (WidgetTester tester) async {
-        await pumpApp(tester, prefs: prefs, player: player);
+        // Pin the classic single-clip contract: dynamic click turned off.
+        SharedPreferences.setMockInitialValues(<String, Object>{
+          'settings.dynamicClickEnabled': false,
+        });
+        final SharedPreferences classicPrefs =
+            await SharedPreferences.getInstance();
+        await pumpApp(tester, prefs: classicPrefs, player: player);
 
         final int downId = backend.idByAsset[SwitchCatalog.blue.downAsset]!;
         final int upId = backend.idByAsset[SwitchCatalog.blue.upAsset]!;
@@ -282,6 +289,48 @@ void main() {
     );
 
     testWidgets(
+      'dynamic mode (default ON): press-down plays the onset first; a quick '
+      'release collapses to the crisp down + up',
+      (WidgetTester tester) async {
+        // Default prefs → dynamic click on.
+        await pumpApp(tester, prefs: prefs, player: player);
+
+        final int onsetId = backend.idByAsset[SwitchCatalog.blue.onsetAsset]!;
+        final int downId = backend.idByAsset[SwitchCatalog.blue.downAsset]!;
+        final int upId = backend.idByAsset[SwitchCatalog.blue.upAsset]!;
+
+        // Press down only: the soft onset ("따") sounds instantly, alone, and a
+        // haptic + click are registered exactly once.
+        final TestGesture gesture = await tester.startGesture(
+          tester.getCenter(find.byKey(Keycap.innerCapKey)),
+        );
+        await tester.pump();
+
+        expect(backend.played, hasLength(1));
+        expect(backend.played.single.soundId, onsetId);
+        expect(vibrateArgs, hasLength(1));
+        expect(
+          tester.widget<Text>(find.byKey(HomeScreen.totalStatKey)).data,
+          '1',
+        );
+
+        // Quick release before the scheduled click fires → the engine cancels
+        // the pending click/bottom and lands the crisp combined "딸깍" + release.
+        await gesture.up();
+        await tester.pump();
+
+        expect(
+          backend.played.map((({int soundId, double volume}) p) => p.soundId),
+          <int>[onsetId, downId, upId],
+        );
+        // No extra haptic/click on release; the cancelled timers never fire.
+        expect(vibrateArgs, hasLength(1));
+        await tester.pump(const Duration(seconds: 1));
+        expect(backend.played, hasLength(3));
+      },
+    );
+
+    testWidgets(
       'sound disabled in settings suppresses playback but still counts',
       (WidgetTester tester) async {
         SharedPreferences.setMockInitialValues(<String, Object>{
@@ -305,6 +354,48 @@ void main() {
           tester.widget<Text>(find.byKey(HomeScreen.totalStatKey)).data,
           '1',
         );
+      },
+    );
+  });
+
+  group('dynamic toggle flipped mid-press (regression)', () {
+    testWidgets(
+      'turning dynamic OFF while held still balances the engine on release — '
+      'no stranded press, no phantom click/bottom after lift',
+      (WidgetTester tester) async {
+        final ProviderContainer container = await pumpApp(
+          tester,
+          prefs: prefs,
+          player: player,
+        );
+        final DynamicClickEngine engine = container.read(
+          dynamicClickEngineProvider,
+        );
+
+        // Press down with dynamic ON → the engine owns the press.
+        final TestGesture gesture = await tester.startGesture(
+          tester.getCenter(find.byKey(Keycap.innerCapKey)),
+        );
+        await tester.pump();
+        expect(engine.isPressing, isTrue);
+
+        // Flip dynamic OFF mid-press (before the click/bottom timers fire) and
+        // let HomeScreen rebuild its press closures.
+        container
+            .read(settingsProvider.notifier)
+            .setDynamicClick(enabled: false);
+        await tester.pump();
+
+        // Release: routed by engine.isPressing, so the engine still finishes.
+        await gesture.up();
+        await tester.pump();
+
+        // The press is balanced (not stranded), and no scheduled timer survives
+        // to play a phantom click/bottom after the finger lifted.
+        expect(engine.isPressing, isFalse);
+        final int playedAfterRelease = backend.played.length;
+        await tester.pump(const Duration(seconds: 1));
+        expect(backend.played.length, playedAfterRelease);
       },
     );
   });

@@ -1,4 +1,5 @@
 import 'package:cliker/audio/click_sound_player.dart';
+import 'package:cliker/audio/dynamic_click_engine.dart';
 import 'package:cliker/domain/switch_type.dart';
 import 'package:cliker/providers/settings_providers.dart';
 import 'package:cliker/providers/stats_providers.dart';
@@ -56,12 +57,27 @@ class HomeScreen extends ConsumerWidget {
     // separate listener; the services are cheap plain objects.
     final ClickSoundPlayer player = ref.watch(clickSoundPlayerProvider)
       ..muted = !settings.soundEnabled;
+    final DynamicClickEngine engine = ref.watch(dynamicClickEngineProvider);
     final Haptics haptics = ref.watch(hapticsProvider)
       ..enabled = settings.hapticEnabled;
 
-    void handlePressDown() {
-      if (settings.soundEnabled) {
-        player.playDown(selected);
+    void handlePressDown(double? force) {
+      // The dynamic engine drives playback whenever it is on (it routes through
+      // the same muted player, so a disabled-sound press is silent but still
+      // balances its schedule); otherwise the classic single-clip path runs.
+      if (settings.dynamicClickEnabled) {
+        engine.pressDown(
+          selected,
+          force: force,
+          intensity: settings.dynamicClickIntensity,
+        );
+      } else {
+        // Drop any schedule a prior dynamic press may have stranded (e.g. the
+        // toggle was flipped off mid-press), then play the single down clip.
+        engine.cancel();
+        if (settings.soundEnabled) {
+          player.playDown(selected);
+        }
       }
       if (settings.hapticEnabled) {
         haptics.click(selected.hapticStrength);
@@ -70,7 +86,13 @@ class HomeScreen extends ConsumerWidget {
     }
 
     void handlePressUp() {
-      if (settings.soundEnabled) {
+      // Route the release by *who owns this press*, not the live toggle: if the
+      // engine started it (dynamic path), let it finish even if the toggle was
+      // since turned off. isPressing is false for a classic press, so we fall
+      // through to the single up clip. This keeps every pressDown balanced.
+      if (engine.isPressing) {
+        engine.pressUp();
+      } else if (settings.soundEnabled) {
         player.playUp(selected);
       }
     }

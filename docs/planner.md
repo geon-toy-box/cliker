@@ -41,6 +41,7 @@ tags: [toybox, project, planner]
 | M3 | Play Store readiness | 앱 아이콘/이름, app id 확정, 릴리스 서명(keystore), 버전, AAB 빌드, 권한 점검, 스토어 등록 메타데이터·개인정보처리방침 | DONE (T009,T010,T011 VERIFIED) |
 | M4 | 스위치 11종 확장 + UI 개편 | 체리 MX 11종, 통계 2개(전체·RPM), 진짜 키캡 모양+확실한 눌림, 11종 가로 스크롤 선택기 | DONE (T012 VERIFIED) |
 | M5 | MZ 비주얼 리디자인 + 스위치 13종 | 축 선택 메뉴화, LED RGB 휠, MZ(홀로그래픽/글로시), 실사 스위치+키캡, 스위치 13종(+황축·자석축) + 정보 메뉴 | DONE (T013,T014 VERIFIED) |
+| M6 | 동적 타건 (딸깍 ↔ 따~알~깍) | 타건을 onset·click·bottom로 분해, 누름 지속시간(+힘)으로 빠른 딸깍↔늘어진 따~알~깍 판정, 설정 토글+강도 슬라이더, 합성기 컴포넌트 스템 | IN_PROGRESS (T015 구현·327 그린·QA/커밋 대기) |
 
 ## Task backlog
 > Statuses: TODO · IN_PROGRESS · BLOCKED · NEEDS_FIX · VERIFIED · DONE
@@ -62,6 +63,7 @@ tags: [toybox, project, planner]
 | T012 | 스위치 11종 확장 + UI 개편(키캡·통계 2개·선택기) | M4 | — | DONE | qa.md PASS · 22a1fbe |
 | T013 | MZ 리디자인: 실사 스위치+키캡 / RGB 휠 / 축 메뉴 | M5 | T012 | DONE | qa.md PASS · 50887b0 |
 | T014 | 스위치 13종 + 메뉴 정보 풍부화(느낌·소리·추천용도) | M5 | T013 | DONE | qa.md PASS · dfefffe |
+| T015 | 클릭음 고도화 + 동적 타건(딸깍↔따~알~깍) | M6 | T014 | IN_PROGRESS | dev.md · 327 green (QA/커밋 대기) |
 
 ## Decisions log
 <!-- Architecture/product decisions, dated, with the reasoning. Prevents re-litigating. -->
@@ -75,6 +77,14 @@ tags: [toybox, project, planner]
 - 2026-06-22: app id = `com.geontoybox.cliker` (이메일 도메인 2ndsyndrome.com 기반; 'com.2ndsyndrome'은 세그먼트가 숫자로 시작해 Android 규칙 위반이라 geontoybox로 변환). 퍼블리시 전 사용자 확정 필요.
 - 2026-06-22: 디자인 = 다크 + 네온 RGB 게이밍 무드(키보드 LED 감성). 라이트 테마 없음(v1).
 - 2026-06-23 (사용자 변경): **app id를 이전 값에서 `com.geontoybox.cliker`로 변경**(브랜드 = geon toybox; 하이픈 'geon-toy-box'은 패키지 세그먼트에 불가라 `geontoybox`로). 모든 텍스트 참조·`MainActivity` 패키지 경로 일괄 갱신. 기존 keystore 바이너리 cert의 조직(O) 필드만 구값 유지(비표시·Play 무관; 원하면 재생성). 미출시라 변경 안전.
+- 2026-06-25 (사용자 확정, T015/M6): **동적 타건(딸깍↔따~알~깍)** 도입. 판정 신호 =
+  **누름 지속시간(보편 기준, 웹·모든 폰 동작) + 힘(pressure 지원 기기에서 분해 정도·음량 가중)**.
+  노출 = **항상 켬 + 설정 토글(끄면 기존 단일 딸깍) + 강도 슬라이더**. 구현 = 타건을
+  onset/click/bottom 컴포넌트로 분해(합성기에서 down/up 뒤에 추가 생성→기존 26 WAV 바이트
+  보존, 총 57). 오디오 백엔드 제약(mediaPlayer + AudioFocus.none)은 분해 재생에서도 불변.
+  click은 clicky·tactile만(linear은 클릭자켓 없음→onset→bottom의 "따~깍"). 빠른 탭은
+  타이머 취소 후 크리스프 down으로 collapse해 매 탭 만족감 보장. **가청 체감 ms 튜닝은
+  온디바이스에서 사용자와 후속**(엔진 상수 노출됨).
 - 2026-06-22 (사용자 확정): **앱 표시 이름 = "클리커"**(한글; 런처 라벨 + 스토어 제목). app id = **com.geontoybox.cliker** 확정(출시 후 영구). 릴리스 서명 **keystore는 플래너가 생성**(업로드 키, key.properties는 gitignore) — 사용자가 keystore 파일+비밀번호를 안전 백업해야 하며, Play 앱 서명 사용 시 업로드 키 분실은 재설정 가능. 실제 Play 업로드는 사용자가 자기 계정으로 수행(플래너는 업로드까지 하지 않음, AAB+메타데이터까지 준비).
 
 ## Open questions (for the user)

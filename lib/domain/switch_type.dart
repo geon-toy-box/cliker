@@ -83,6 +83,40 @@ class SwitchType {
   /// Haptic intensity in the range (0, 1]; higher is stronger.
   final double hapticStrength;
 
+  /// Asset path for the press *onset* ("따") — the soft pre-travel/contact tick
+  /// at the very start of the downstroke. Played first in the dynamic
+  /// "따~알~깍" decomposition. Derived from [id] (`<id>_onset.wav`); the clip is
+  /// synthesized by `tools/gen_sounds.py`.
+  String get onsetAsset => 'assets/sounds/${id}_onset.wav';
+
+  /// Asset path for the bottom-out ("깍") — the weighty thud as the stem hits
+  /// the housing floor, the last event of a full press. Derived from [id]
+  /// (`<id>_bottom.wav`).
+  String get bottomAsset => 'assets/sounds/${id}_bottom.wav';
+
+  /// Asset path for the actuation *click* ("알") — the click-jacket snap of a
+  /// clicky switch or the soft tactile bump of a tactile one — or `null` for a
+  /// pure [SwitchKind.linear] switch, which has no click jacket and so emits no
+  /// mid-travel click (its decomposition is just onset → bottom, "따~깍").
+  ///
+  /// Whether a clip exists is keyed off [kind] exactly as the generator decides
+  /// it (clicky + tactile get a `<id>_click.wav`; linear does not), so the
+  /// catalog and the synthesized assets can never drift apart.
+  String? get clickAsset =>
+      kind == SwitchKind.linear ? null : 'assets/sounds/${id}_click.wav';
+
+  /// Every sound clip this switch needs preloaded: the combined [downAsset] /
+  /// [upAsset] (used for the fast "딸깍" tap) plus the [onsetAsset] /
+  /// [bottomAsset] / [clickAsset] component stems (used for the drawn-out
+  /// "따~알~깍"). [clickAsset] is included only when non-null.
+  List<String> get soundAssets => <String>[
+    downAsset,
+    upAsset,
+    onsetAsset,
+    bottomAsset,
+    ?clickAsset,
+  ];
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) || (other is SwitchType && other.id == id);

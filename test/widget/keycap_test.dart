@@ -102,7 +102,7 @@ void main() {
               ledColor: AppColors.neonCyan,
               stemColor: AppColors.switchBlue,
               label: 'A',
-              onPressDown: () => downCount++,
+              onPressDown: (double? _) => downCount++,
               onPressUp: () => upCount++,
             ),
           ),
@@ -183,7 +183,7 @@ void main() {
           Keycap(
             ledColor: AppColors.neonMagenta,
             stemColor: AppColors.switchRed,
-            onPressDown: () => downCount++,
+            onPressDown: (double? _) => downCount++,
             onPressUp: () => upCount++,
           ),
         ),
@@ -211,6 +211,78 @@ void main() {
       expect(find.byType(LedRipple), findsNothing);
     });
 
+    testWidgets(
+      'onPressDown is handed a force argument (null when the test pointer '
+      'reports no pressure range)',
+      (WidgetTester tester) async {
+        final List<double?> forces = <double?>[];
+
+        await tester.pumpWidget(
+          _host(
+            Keycap(
+              ledColor: AppColors.neonCyan,
+              stemColor: AppColors.switchBlue,
+              onPressDown: forces.add,
+            ),
+          ),
+        );
+
+        final TestGesture gesture = await tester.startGesture(
+          tester.getCenter(find.byKey(Keycap.innerCapKey)),
+        );
+        await tester.pump();
+        await gesture.up();
+        await tester.pump();
+
+        // The callback fired once; the synthetic pointer has no pressure range
+        // (pressureMin == pressureMax), so force normalizes to null.
+        expect(forces, hasLength(1));
+        expect(forces.single, isNull);
+      },
+    );
+
+    testWidgets(
+      'onPressDown reports the normalized force when the pointer has a real '
+      'pressure range',
+      (WidgetTester tester) async {
+        final List<double?> forces = <double?>[];
+
+        await tester.pumpWidget(
+          _host(
+            Keycap(
+              ledColor: AppColors.neonCyan,
+              stemColor: AppColors.switchBlue,
+              onPressDown: forces.add,
+            ),
+          ),
+        );
+
+        // Drive a pointer-down carrying a genuine pressure range (0..1 @ 0.8),
+        // unlike tester.startGesture which always collapses the range to 1..1.
+        final Offset center = tester.getCenter(find.byKey(Keycap.innerCapKey));
+        final TestGesture gesture = await tester.createGesture();
+        await gesture.downWithCustomEvent(
+          center,
+          PointerDownEvent(
+            position: center,
+            pressure: 0.8,
+            pressureMin: 0.0,
+            pressureMax: 1.0,
+          ),
+        );
+        await tester.pump();
+        await gesture.up();
+        await tester.pump();
+
+        // 0.8 normalized across [0, 1] is 0.8 — proves the pressure-capture
+        // wiring (Listener → normalizeForce → onPressDown), not just the null
+        // fallback.
+        expect(forces, hasLength(1));
+        expect(forces.single, isNotNull);
+        expect(forces.single!, moreOrLessEquals(0.8, epsilon: 0.001));
+      },
+    );
+
     testWidgets('onTapCancel still balances the press with onPressUp', (
       WidgetTester tester,
     ) async {
@@ -222,7 +294,7 @@ void main() {
           Keycap(
             ledColor: AppColors.neonCyan,
             stemColor: AppColors.switchBlue,
-            onPressDown: () => downCount++,
+            onPressDown: (double? _) => downCount++,
             onPressUp: () => upCount++,
           ),
         ),

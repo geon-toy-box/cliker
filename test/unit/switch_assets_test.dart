@@ -62,19 +62,32 @@ _WavHeader _parseWavHeader(Uint8List bytes) {
   throw const FormatException('no fmt chunk found');
 }
 
+/// The phase label of a clip path, e.g. `assets/sounds/blue_onset.wav` → `onset`
+/// (the filename stem with the leading `<id>_` removed).
+String _labelOf(String path, String id) {
+  final String stem = path.split('/').last.replaceAll('.wav', '');
+  return stem.replaceFirst('${id}_', '');
+}
+
 void main() {
   group('Switch sound assets exist and are valid WAV (AC3)', () {
-    final List<({String id, String label, String path})>
-    clips = <({String id, String label, String path})>[
-      for (final SwitchType s
-          in SwitchCatalog.all) ...<({String id, String label, String path})>[
-        (id: s.id, label: 'down', path: s.downAsset),
-        (id: s.id, label: 'up', path: s.upAsset),
-      ],
-    ];
+    // Every clip every switch needs: the combined down/up plus the dynamic
+    // onset/click/bottom component stems (clickAsset is null for pure linears).
+    final List<({String id, String label, String path})> clips =
+        <({String id, String label, String path})>[
+          for (final SwitchType s in SwitchCatalog.all)
+            for (final String path in s.soundAssets)
+              (id: s.id, label: _labelOf(path, s.id), path: path),
+        ];
 
-    test('expects exactly 26 clips (13 switches x down/up)', () {
-      expect(clips, hasLength(26));
+    test('expects 57 clips: 13×(down,up,onset,bottom) + 5×click', () {
+      // 13 switches × 4 always-present stems = 52, plus a click stem for the
+      // 5 clicky/tactile switches (blue, white, brown, gray, clear) = 57.
+      expect(clips, hasLength(57));
+      final int clickClips = SwitchCatalog.all
+          .where((SwitchType s) => s.clickAsset != null)
+          .length;
+      expect(clickClips, 5);
     });
 
     for (final ({String id, String label, String path}) clip in clips) {

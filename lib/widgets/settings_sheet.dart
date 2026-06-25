@@ -30,6 +30,14 @@ class SettingsSheet extends ConsumerWidget {
   /// Key on the haptic toggle ([Switch]).
   static const Key hapticToggleKey = Key('settings-haptic-toggle');
 
+  /// Key on the dynamic-click toggle ([Switch]).
+  static const Key dynamicClickToggleKey = Key('settings-dynamic-click-toggle');
+
+  /// Key on the dynamic-click intensity ("강도") [Slider].
+  static const Key dynamicIntensitySliderKey = Key(
+    'settings-dynamic-intensity',
+  );
+
   /// Key for the LED-mode chip of [mode].
   static Key modeChipKey(LedMode mode) => Key('settings-mode-${mode.name}');
 
@@ -57,7 +65,7 @@ class SettingsSheet extends ConsumerWidget {
     return SafeArea(
       key: sheetKey,
       top: false,
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.lg,
           0,
@@ -89,6 +97,21 @@ class SettingsSheet extends ConsumerWidget {
               label: '햅틱',
               value: settings.hapticEnabled,
               onChanged: (bool v) => notifier.setHaptic(enabled: v),
+            ),
+
+            // Dynamic click: the "딸깍 ↔ 따~알~깍" decomposition + a 강도 slider
+            // that only matters while it is on.
+            _ToggleRow(
+              toggleKey: dynamicClickToggleKey,
+              label: '동적 타건 (딸깍 ↔ 따~알~깍)',
+              value: settings.dynamicClickEnabled,
+              onChanged: (bool v) => notifier.setDynamicClick(enabled: v),
+            ),
+            _DynamicIntensityRow(
+              sliderKey: dynamicIntensitySliderKey,
+              value: settings.dynamicClickIntensity,
+              enabled: settings.dynamicClickEnabled,
+              onChanged: notifier.setDynamicClickIntensity,
             ),
             const SizedBox(height: AppSpacing.lg),
 
@@ -147,6 +170,44 @@ class _ToggleRow extends StatelessWidget {
           value: value,
           activeThumbColor: AppColors.neonCyan,
           onChanged: onChanged,
+        ),
+      ],
+    );
+  }
+}
+
+/// The dynamic-click "강도" (decomposition amount) slider. Greyed out and inert
+/// while the dynamic-click toggle is off, since intensity has no effect then.
+class _DynamicIntensityRow extends StatelessWidget {
+  const _DynamicIntensityRow({
+    required this.sliderKey,
+    required this.value,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final Key sliderKey;
+  final double value;
+  final bool enabled;
+  final ValueChanged<double> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    final Color labelColor = enabled
+        ? AppColors.textMuted
+        : AppColors.textMuted.withValues(alpha: 0.4);
+    return Row(
+      children: <Widget>[
+        Text('강도', style: textTheme.bodyMedium?.copyWith(color: labelColor)),
+        Expanded(
+          child: Slider(
+            key: sliderKey,
+            value: value.clamp(0.0, 1.0),
+            activeColor: AppColors.neonCyan,
+            // A disabled Slider (null callback) renders greyed and ignores drags.
+            onChanged: enabled ? onChanged : null,
+          ),
         ),
       ],
     );

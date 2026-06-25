@@ -36,6 +36,12 @@ void main() {
       expect(settings.hapticEnabled, isTrue);
       expect(settings.ledMode, LedMode.ripple);
       expect(settings.ledColorArgb, AppColors.accentDefault.toARGB32());
+      // Dynamic click ships on by default, at the mid-spread intensity.
+      expect(settings.dynamicClickEnabled, isTrue);
+      expect(
+        settings.dynamicClickIntensity,
+        SettingsNotifier.defaultDynamicClickIntensity,
+      );
     });
   });
 
@@ -107,17 +113,52 @@ void main() {
 
       expect(second.read(settingsProvider).ledColorArgb, magenta);
     });
+
+    test('setDynamicClick persists', () async {
+      final ProviderContainer first = await containerWith(<String, Object>{});
+      expect(first.read(settingsProvider).dynamicClickEnabled, isTrue);
+      first.read(settingsProvider.notifier).setDynamicClick(enabled: false);
+      expect(first.read(settingsProvider).dynamicClickEnabled, isFalse);
+
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final ProviderContainer second = ProviderContainer(
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      );
+      addTearDown(second.dispose);
+
+      expect(second.read(settingsProvider).dynamicClickEnabled, isFalse);
+    });
+
+    test('setDynamicClickIntensity persists and clamps to [0, 1]', () async {
+      final ProviderContainer first = await containerWith(<String, Object>{});
+      // Out-of-range input is clamped before it is stored.
+      first.read(settingsProvider.notifier).setDynamicClickIntensity(1.8);
+      expect(first.read(settingsProvider).dynamicClickIntensity, 1.0);
+      first.read(settingsProvider.notifier).setDynamicClickIntensity(0.25);
+      expect(first.read(settingsProvider).dynamicClickIntensity, 0.25);
+
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final ProviderContainer second = ProviderContainer(
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      );
+      addTearDown(second.dispose);
+
+      expect(second.read(settingsProvider).dynamicClickIntensity, 0.25);
+    });
   });
 
   group('Settings value semantics', () {
+    const Settings base = Settings(
+      selectedSwitchId: 'blue',
+      soundEnabled: true,
+      hapticEnabled: true,
+      ledMode: LedMode.ripple,
+      ledColorArgb: 0xFF00E5FF,
+      dynamicClickEnabled: true,
+      dynamicClickIntensity: 0.5,
+    );
+
     test('copyWith changes only named fields', () {
-      const Settings base = Settings(
-        selectedSwitchId: 'blue',
-        soundEnabled: true,
-        hapticEnabled: true,
-        ledMode: LedMode.ripple,
-        ledColorArgb: 0xFF00E5FF,
-      );
       final Settings changed = base.copyWith(soundEnabled: false);
 
       expect(changed.soundEnabled, isFalse);
@@ -125,34 +166,33 @@ void main() {
       expect(changed.hapticEnabled, base.hapticEnabled);
       expect(changed.ledMode, base.ledMode);
       expect(changed.ledColorArgb, base.ledColorArgb);
+      // Untouched dynamic fields pass through unchanged.
+      expect(changed.dynamicClickEnabled, base.dynamicClickEnabled);
+      expect(changed.dynamicClickIntensity, base.dynamicClickIntensity);
+    });
+
+    test('copyWith updates the dynamic-click fields', () {
+      final Settings changed = base.copyWith(
+        dynamicClickEnabled: false,
+        dynamicClickIntensity: 0.9,
+      );
+      expect(changed.dynamicClickEnabled, isFalse);
+      expect(changed.dynamicClickIntensity, 0.9);
+      // Other fields untouched.
+      expect(changed.soundEnabled, base.soundEnabled);
     });
 
     test('equality and hashCode are value-based', () {
-      const Settings a = Settings(
-        selectedSwitchId: 'blue',
-        soundEnabled: true,
-        hapticEnabled: true,
-        ledMode: LedMode.ripple,
-        ledColorArgb: 0xFF00E5FF,
-      );
-      const Settings b = Settings(
-        selectedSwitchId: 'blue',
-        soundEnabled: true,
-        hapticEnabled: true,
-        ledMode: LedMode.ripple,
-        ledColorArgb: 0xFF00E5FF,
-      );
-      const Settings c = Settings(
-        selectedSwitchId: 'red',
-        soundEnabled: true,
-        hapticEnabled: true,
-        ledMode: LedMode.ripple,
-        ledColorArgb: 0xFF00E5FF,
-      );
+      final Settings a = base.copyWith();
+      final Settings b = base.copyWith();
+      final Settings c = base.copyWith(selectedSwitchId: 'red');
+      // Differing only in a dynamic field still breaks equality.
+      final Settings d = base.copyWith(dynamicClickIntensity: 0.7);
 
       expect(a, equals(b));
       expect(a.hashCode, b.hashCode);
       expect(a == c, isFalse);
+      expect(a == d, isFalse);
     });
   });
 }

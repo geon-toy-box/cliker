@@ -23,11 +23,14 @@ abstract class SoundBackend {
 
 /// [SoundBackend] backed by the `audioplayers` plugin's [AudioPool].
 ///
-/// Each loaded asset gets its own [AudioPool] of a few players in
-/// [PlayerMode.lowLatency] (Android `SoundPool` under the hood), so rapid,
+/// Each loaded asset gets its own [AudioPool] of a few players so rapid,
 /// overlapping presses each grab a free player instead of cutting one another
-/// off — the low-latency feel the feature is built around. [load] returns a
-/// small integer id that maps back to the asset's pool.
+/// off. The pools run in [PlayerMode.mediaPlayer] — **not** `lowLatency`, which
+/// requests an Android FAST track that many devices reject (`AudioFlinger
+/// "mismatch 0x4 vs 0x2"`) and so produces no audible output (see
+/// `docs/errorlog.md`, 2026-06-23); sources are preloaded so per-tap latency
+/// stays low enough for a clicker. [load] returns a small integer id that maps
+/// back to the asset's pool.
 class AudioPlayersBackend implements SoundBackend {
   AudioPlayersBackend({int maxPlayers = 4}) : _maxPlayers = maxPlayers;
 
@@ -117,7 +120,9 @@ class ClickSoundPlayer {
   /// Whether [init] has completed and loaded the clips.
   bool get isInitialized => _initialized;
 
-  /// Preloads every down/up clip in [SwitchCatalog.all] into the backend.
+  /// Preloads every clip in [SwitchCatalog.all] into the backend — the combined
+  /// down/up clips *and* the onset/click/bottom component stems (see
+  /// [SwitchType.soundAssets]).
   ///
   /// Idempotent: a second call returns immediately. Assets are loaded in the
   /// catalog's order; duplicate paths (should they ever exist) are loaded once.
@@ -126,7 +131,7 @@ class ClickSoundPlayer {
       return;
     }
     for (final SwitchType s in SwitchCatalog.all) {
-      for (final String asset in <String>[s.downAsset, s.upAsset]) {
+      for (final String asset in s.soundAssets) {
         if (_soundIds.containsKey(asset)) {
           continue;
         }
@@ -136,8 +141,8 @@ class ClickSoundPlayer {
     _initialized = true;
   }
 
-  /// Plays [s]'s press clip at [volume]. No-op when [muted] or the clip was
-  /// never loaded.
+  /// Plays [s]'s combined press clip ("딸깍") at [volume] — the tight, all-in-one
+  /// clip used for a fast tap. No-op when [muted] or the clip was never loaded.
   Future<void> playDown(SwitchType s, {double volume = 1.0}) {
     return _play(s.downAsset, volume);
   }
@@ -146,6 +151,28 @@ class ClickSoundPlayer {
   /// never loaded.
   Future<void> playUp(SwitchType s, {double volume = 1.0}) {
     return _play(s.upAsset, volume);
+  }
+
+  /// Plays [s]'s onset stem ("따") — the soft start-of-downstroke tick. First
+  /// event of the drawn-out decomposition. No-op when [muted].
+  Future<void> playOnset(SwitchType s, {double volume = 1.0}) {
+    return _play(s.onsetAsset, volume);
+  }
+
+  /// Plays [s]'s actuation click stem ("알"). A no-op for a pure linear switch
+  /// (its [SwitchType.clickAsset] is null — no click jacket) and when [muted].
+  Future<void> playClick(SwitchType s, {double volume = 1.0}) {
+    final String? asset = s.clickAsset;
+    if (asset == null) {
+      return Future<void>.value();
+    }
+    return _play(asset, volume);
+  }
+
+  /// Plays [s]'s bottom-out stem ("깍") — the weighty thud at full travel. Last
+  /// event of a full press. No-op when [muted].
+  Future<void> playBottom(SwitchType s, {double volume = 1.0}) {
+    return _play(s.bottomAsset, volume);
   }
 
   Future<void> _play(String asset, double volume) async {
