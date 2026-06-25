@@ -1,5 +1,6 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:cliker/domain/switch_type.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Minimal sound-playback surface the [ClickSoundPlayer] depends on.
@@ -23,19 +24,45 @@ abstract class SoundBackend {
 
 /// [SoundBackend] backed by the `audioplayers` plugin's [AudioPool].
 ///
-/// Each loaded asset gets its own [AudioPool] of a few players so rapid,
-/// overlapping presses each grab a free player instead of cutting one another
-/// off. The pools run in [PlayerMode.mediaPlayer] — **not** `lowLatency`, which
-/// requests an Android FAST track that many devices reject (`AudioFlinger
-/// "mismatch 0x4 vs 0x2"`) and so produces no audible output (see
-/// `docs/errorlog.md`, 2026-06-23); sources are preloaded so per-tap latency
-/// stays low enough for a clicker. [load] returns a small integer id that maps
-/// back to the asset's pool.
+/// **Pools are created lazily, on first play, not at [load] time** — and the
+/// number kept alive at once is capped ([maxLivePools], LRU-evicted). This is
+/// deliberate: `AudioPool.create` eagerly allocates a native player (an Android
+/// `MediaPlayer`) per pool, so eagerly creating one for every clip in the
+/// catalog (13 switches × up to 5 stems = 57) would allocate dozens of players
+/// at startup and blow past the device's concurrent-player limit — after which
+/// further allocations fail and those switches go silent (only the first few
+/// loaded ones, e.g. the default 청축, keep working). Loading on demand keeps the
+/// live player count to roughly the clips of the switch(es) in recent use.
+///
+/// Pools run in [PlayerMode.mediaPlayer] — **not** `lowLatency`, which requests
+/// an Android FAST track that many devices reject (`AudioFlinger "mismatch 0x4
+/// vs 0x2"`) and so produces no audible output (see `docs/errorlog.md`,
+/// 2026-06-23). The trade-off of lazy creation is a small one-time latency the
+/// first time each clip plays; subsequent plays reuse the warm pool.
+///
+/// [load] just records the asset path and returns a stable id; [play] gets — or
+/// creates — that id's pool.
 class AudioPlayersBackend implements SoundBackend {
-  AudioPlayersBackend({int maxPlayers = 4}) : _maxPlayers = maxPlayers;
+  AudioPlayersBackend({int maxPlayers = 4, int maxLivePools = 16})
+    : _maxPlayers = maxPlayers,
+      _maxLivePools = maxLivePools;
 
   final int _maxPlayers;
-  final List<AudioPool> _pools = <AudioPool>[];
+
+  /// Hard ceiling on simultaneously-allocated pools; the least-recently-played
+  /// pool is disposed when a new one would exceed it. Keeps the native player
+  /// count well under any device limit even if the user cycles every switch.
+  final int _maxLivePools;
+
+  /// Asset path per sound id (the id is the index). Recorded at [load]; the pool
+  /// itself is created lazily in [_poolFor].
+  final List<String> _assets = <String>[];
+
+  /// Currently-allocated pools, keyed by sound id.
+  final Map<int, AudioPool> _live = <int, AudioPool>{};
+
+  /// Sound ids in least-recently-played → most-recent order, for LRU eviction.
+  final List<int> _lru = <int>[];
 
   /// Audio attributes for short UI click sounds.
   ///
@@ -63,37 +90,82 @@ class AudioPlayersBackend implements SoundBackend {
     final String path = asset.startsWith('assets/')
         ? asset.substring('assets/'.length)
         : asset;
-    // Use create() (not createFromAsset) because only it forwards audioContext.
-    // PlayerMode.mediaPlayer (not lowLatency): lowLatency requests an Android
-    // FAST audio track that many devices/emulators reject (AudioFlinger
-    // "mismatch between requested flags (0x4) and output flags (0x2)"),
-    // producing no audible output. mediaPlayer uses a normal track that plays
-    // reliably; sources are preloaded so per-tap latency stays low enough for a
-    // clicker.
-    final AudioPool pool = await AudioPool.create(
-      source: AssetSource(path),
-      maxPlayers: _maxPlayers,
-      audioContext: _sfxContext,
-      playerMode: PlayerMode.mediaPlayer,
-    );
-    _pools.add(pool);
-    return _pools.length - 1;
+    _assets.add(path);
+    return _assets.length - 1; // No pool yet — created lazily on first play.
   }
 
   @override
   Future<void> play(int soundId, {double volume = 1.0}) async {
-    if (soundId < 0 || soundId >= _pools.length) {
+    if (soundId < 0 || soundId >= _assets.length) {
       return;
     }
-    await _pools[soundId].start(volume: volume);
+    final AudioPool? pool = await _poolFor(soundId);
+    await pool?.start(volume: volume);
+  }
+
+  /// Returns the pool for [soundId], creating it (and evicting the
+  /// least-recently-used pool if at capacity) on first use. Returns null if the
+  /// native pool could not be created, so playback degrades to silent rather
+  /// than throwing into the fire-and-forget play path.
+  Future<AudioPool?> _poolFor(int soundId) async {
+    // Mark most-recently-used.
+    _lru
+      ..remove(soundId)
+      ..add(soundId);
+
+    final AudioPool? existing = _live[soundId];
+    if (existing != null) {
+      return existing;
+    }
+
+    // Evict least-recently-played live pools until there is room for one more.
+    while (_live.length >= _maxLivePools) {
+      final int victimIndex = _lru.indexWhere(_live.containsKey);
+      if (victimIndex < 0) {
+        break;
+      }
+      final int victim = _lru.removeAt(victimIndex);
+      final AudioPool? evicted = _live.remove(victim);
+      if (evicted != null) {
+        await evicted.dispose();
+      }
+    }
+
+    try {
+      // Use create() (not createFromAsset) because only it forwards
+      // audioContext. mediaPlayer (not lowLatency) — see the class doc.
+      final AudioPool pool = await AudioPool.create(
+        source: AssetSource(_assets[soundId]),
+        maxPlayers: _maxPlayers,
+        audioContext: _sfxContext,
+        playerMode: PlayerMode.mediaPlayer,
+      );
+      _live[soundId] = pool;
+      return pool;
+    } on Object catch (error, stackTrace) {
+      _lru.remove(soundId); // It never became live.
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stackTrace,
+          library: 'cliker',
+          context: ErrorDescription(
+            'creating audio pool for ${_assets[soundId]}',
+          ),
+        ),
+      );
+      return null;
+    }
   }
 
   @override
   Future<void> dispose() async {
-    for (final AudioPool pool in _pools) {
+    for (final AudioPool pool in _live.values) {
       await pool.dispose();
     }
-    _pools.clear();
+    _live.clear();
+    _lru.clear();
+    _assets.clear();
   }
 }
 
