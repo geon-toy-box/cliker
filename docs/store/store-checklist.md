@@ -36,7 +36,7 @@
 - [ ] 📄 영어(en-US) 등록정보 추가(선택, 글로벌 노출용)
   - 출처: `docs/store/listing-en.md` (제목 25 / 짧은 73 / 자세한 1949, 한도 이내)
 - [ ] 📄 앱 카테고리 선택 — 권장: **엔터테인먼트**(대안: 도구). 근거: listing-*.md 참조
-- [ ] 📄 연락처 이메일: **geon@2ndsyndrome.com**
+- [ ] 📄 연락처 이메일: **leegeondev@gmail.com**
 
 ## D. 그래픽 자산 — 📄 일부 준비됨 / 🧑 일부 필요
 
@@ -98,4 +98,4 @@
 | 콘텐츠 등급 | `docs/store/content-rating.md` | 준비됨 |
 | 가격(무료)/국가 | — | 사용자 설정 |
 
-문의: geon@2ndsyndrome.com
+문의: leegeondev@gmail.com

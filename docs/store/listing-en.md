@@ -83,7 +83,7 @@ Don't like the sound? Turn it off. Don't like the buzz? Turn off haptics. Both
 are one tap away in Settings.
 Give it a press. Click.
 
-Contact: geon@2ndsyndrome.com
+Contact: leegeondev@gmail.com
 ```
 
 - Measured length: **1949 chars** (≤ 4000 OK) — evidence/dev/charcounts.txt.
@@ -110,5 +110,5 @@ red switch, black switch, haptics, vibration, offline
 
 ## Contact details
 
-- Email: **geon@2ndsyndrome.com**
+- Email: **leegeondev@gmail.com**
 - Website: (optional) you may reuse the hosted privacy-policy URL.

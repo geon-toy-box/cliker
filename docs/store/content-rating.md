@@ -40,4 +40,4 @@
 - ⚠️ 최종 등급은 IARC 설문 제출 후 자동 산정된다. 본 문서는 **예상치**이며, 실제
   등급 결정은 Play/IARC의 몫이다(사용자 제출 필요).
 
-문의: geon@2ndsyndrome.com
+문의: leegeondev@gmail.com

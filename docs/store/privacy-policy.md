@@ -1,7 +1,7 @@
 # 개인정보처리방침 / Privacy Policy — 클리커 (cliker)
 
 **시행일 / Effective date: 2026-06-25**
-**문의 / Contact: geon@2ndsyndrome.com**
+**문의 / Contact: leegeondev@gmail.com**
 
 > 이 문서는 Google Play가 요구하는 공개 개인정보처리방침이다. 동일 내용을 브라우저에서
 > 바로 열 수 있는 `privacy-policy.html`로도 제공하며, 그 사본이 앱의 Flutter 웹
@@ -54,7 +54,7 @@ SharedPreferences 사용). 이 데이터는 앱 밖으로 전송되지 않으며
 이 방침이 변경되면 이 문서의 시행일을 갱신하여 알립니다.
 
 ### 9. 문의
-개인정보처리방침 관련 문의: **geon@2ndsyndrome.com**
+개인정보처리방침 관련 문의: **leegeondev@gmail.com**
 
 ---
 
@@ -106,4 +106,4 @@ If this policy changes, we will update the effective date at the top of this
 document.
 
 ### 9. Contact
-For privacy questions: **geon@2ndsyndrome.com**
+For privacy questions: **leegeondev@gmail.com**

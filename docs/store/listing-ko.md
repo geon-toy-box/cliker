@@ -78,7 +78,7 @@
 소리가 거슬리면 사운드를, 진동이 싫으면 햅틱을 설정에서 끌 수 있습니다.
 지금 눌러보세요. 딸깍.
 
-문의: geon@2ndsyndrome.com
+문의: leegeondev@gmail.com
 ```
 
 - 측정 글자 수: **1022자** (≤ 4000 OK) — evidence/dev/charcounts.txt
@@ -103,5 +103,5 @@
 
 ## 연락처 (Contact details)
 
-- 이메일: **geon@2ndsyndrome.com**
+- 이메일: **leegeondev@gmail.com**
 - 웹사이트: (선택) 개인정보처리방침을 호스팅한 URL을 그대로 사용해도 됨.

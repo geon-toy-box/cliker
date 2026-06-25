@@ -45,4 +45,4 @@
 - 데이터 필수 여부: **앱 사용에 어떤 데이터도 필수가 아님 (No data required)**
 - 저장 위치: **기기 로컬 전용 (on-device only, SharedPreferences)**
 
-문의: geon@2ndsyndrome.com
+문의: leegeondev@gmail.com
