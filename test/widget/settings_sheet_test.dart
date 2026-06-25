@@ -186,9 +186,16 @@ void main() {
     testWidgets(
       'toggling haptic OFF sets hapticEnabled=false and suppresses vibration',
       (WidgetTester tester) async {
+        // Pin the classic single-clip sound path so the played-count assertion
+        // (down + up = 2) is about haptic gating, not the dynamic decomposition.
+        SharedPreferences.setMockInitialValues(<String, Object>{
+          'settings.dynamicClickEnabled': false,
+        });
+        final SharedPreferences classicPrefs =
+            await SharedPreferences.getInstance();
         final ProviderContainer container = await pumpApp(
           tester,
-          prefs: prefs,
+          prefs: classicPrefs,
           player: player,
         );
         expect(container.read(settingsProvider).hapticEnabled, isTrue);
@@ -278,7 +285,14 @@ void main() {
       expect(container.read(settingsProvider).ledMode, LedMode.ripple);
 
       await openSheet(tester);
-      await tester.tap(find.byKey(SettingsSheet.modeChipKey(LedMode.rgbCycle)));
+      // The sheet now scrolls; the LED-mode chips sit below the fold, so bring
+      // the target chip into view before tapping it.
+      final Finder rgbChip = find.byKey(
+        SettingsSheet.modeChipKey(LedMode.rgbCycle),
+      );
+      await tester.ensureVisible(rgbChip);
+      await tester.pump();
+      await tester.tap(rgbChip);
       // Cannot pumpAndSettle here: rgbCycle starts a perpetual hue animation in
       // the keycap behind the sheet, so the tree never reaches a steady state.
       // A couple of fixed frames is enough to apply the chip selection.
@@ -294,6 +308,103 @@ void main() {
       );
       addTearDown(second.dispose);
       expect(second.read(settingsProvider).ledMode, LedMode.rgbCycle);
+    });
+  });
+
+  group('dynamic-click controls', () {
+    testWidgets('sheet shows the dynamic-click toggle + 강도 slider', (
+      WidgetTester tester,
+    ) async {
+      await pumpApp(tester, prefs: prefs, player: player);
+      await openSheet(tester);
+
+      expect(find.byKey(SettingsSheet.dynamicClickToggleKey), findsOneWidget);
+      expect(
+        find.byKey(SettingsSheet.dynamicIntensitySliderKey),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets(
+      'toggling dynamic click OFF persists and disables the 강도 slider',
+      (WidgetTester tester) async {
+        final ProviderContainer container = await pumpApp(
+          tester,
+          prefs: prefs,
+          player: player,
+        );
+        expect(container.read(settingsProvider).dynamicClickEnabled, isTrue);
+
+        await openSheet(tester);
+
+        // On by default → the slider is interactive.
+        final Slider before = tester.widget<Slider>(
+          find.byKey(SettingsSheet.dynamicIntensitySliderKey),
+        );
+        expect(before.onChanged, isNotNull);
+
+        await tester.tap(find.byKey(SettingsSheet.dynamicClickToggleKey));
+        await tester.pumpAndSettle();
+
+        // Provider flips and the slider goes inert (onChanged == null).
+        expect(container.read(settingsProvider).dynamicClickEnabled, isFalse);
+        final Slider after = tester.widget<Slider>(
+          find.byKey(SettingsSheet.dynamicIntensitySliderKey),
+        );
+        expect(after.onChanged, isNull);
+
+        // Persisted across a fresh container over the same prefs.
+        final SharedPreferences freshPrefs =
+            await SharedPreferences.getInstance();
+        final ProviderContainer second = ProviderContainer(
+          overrides: [sharedPreferencesProvider.overrideWithValue(freshPrefs)],
+        );
+        addTearDown(second.dispose);
+        expect(second.read(settingsProvider).dynamicClickEnabled, isFalse);
+      },
+    );
+
+    testWidgets('dragging the 강도 slider updates and persists the intensity', (
+      WidgetTester tester,
+    ) async {
+      final ProviderContainer container = await pumpApp(
+        tester,
+        prefs: prefs,
+        player: player,
+      );
+      expect(
+        container.read(settingsProvider).dynamicClickIntensity,
+        SettingsNotifier.defaultDynamicClickIntensity,
+      );
+
+      await openSheet(tester);
+
+      // Drag the slider thumb to the right — intensity must increase.
+      await tester.drag(
+        find.byKey(SettingsSheet.dynamicIntensitySliderKey),
+        const Offset(200, 0),
+      );
+      await tester.pumpAndSettle();
+
+      final double updated = container
+          .read(settingsProvider)
+          .dynamicClickIntensity;
+      expect(
+        updated,
+        greaterThan(SettingsNotifier.defaultDynamicClickIntensity),
+      );
+
+      // Persisted across a fresh container.
+      final SharedPreferences freshPrefs =
+          await SharedPreferences.getInstance();
+      final ProviderContainer second = ProviderContainer(
+        overrides: [sharedPreferencesProvider.overrideWithValue(freshPrefs)],
+      );
+      addTearDown(second.dispose);
+      expect(
+        second.read(settingsProvider).dynamicClickIntensity,
+        moreOrLessEquals(updated),
+      );
     });
   });
 }

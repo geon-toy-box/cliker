@@ -40,7 +40,7 @@ class FakeBackend implements SoundBackend {
 void main() {
   group('ClickSoundPlayer.init (AC1)', () {
     test(
-      'loads exactly the 26 catalog down/up assets, by correct path',
+      'loads every catalog clip (down/up + onset/click/bottom) by correct path',
       () async {
         final FakeBackend backend = FakeBackend();
         final ClickSoundPlayer player = ClickSoundPlayer(backend);
@@ -48,14 +48,12 @@ void main() {
         await player.init();
 
         final List<String> expected = <String>[
-          for (final SwitchType s in SwitchCatalog.all) ...<String>[
-            s.downAsset,
-            s.upAsset,
-          ],
+          for (final SwitchType s in SwitchCatalog.all) ...s.soundAssets,
         ];
 
-        expect(expected, hasLength(26));
-        expect(backend.loaded, hasLength(26));
+        // 13×(down,up,onset,bottom) + 5 click stems = 57.
+        expect(expected, hasLength(57));
+        expect(backend.loaded, hasLength(57));
         expect(backend.loaded.toSet(), equals(expected.toSet()));
         // Every loaded path is one of the catalog assets (no stray loads).
         expect(backend.loaded, containsAll(expected));
@@ -70,7 +68,7 @@ void main() {
       await player.init();
       await player.init();
 
-      expect(backend.loaded, hasLength(26));
+      expect(backend.loaded, hasLength(57));
     });
   });
 
@@ -117,6 +115,64 @@ void main() {
       await player.playDown(SwitchCatalog.brown, volume: 0.5);
 
       expect(backend.played.single.volume, 0.5);
+    });
+  });
+
+  group('ClickSoundPlayer component stems (onset/click/bottom)', () {
+    test(
+      'plays the onset/click/bottom soundIds mapped to a clicky switch',
+      () async {
+        final FakeBackend backend = FakeBackend();
+        final ClickSoundPlayer player = ClickSoundPlayer(backend);
+        await player.init();
+
+        final int onsetId = backend.idByAsset[SwitchCatalog.blue.onsetAsset]!;
+        final int clickId = backend.idByAsset[SwitchCatalog.blue.clickAsset!]!;
+        final int bottomId = backend.idByAsset[SwitchCatalog.blue.bottomAsset]!;
+
+        await player.playOnset(SwitchCatalog.blue);
+        await player.playClick(SwitchCatalog.blue);
+        await player.playBottom(SwitchCatalog.blue);
+
+        expect(
+          backend.played.map((({int soundId, double volume}) p) => p.soundId),
+          <int>[onsetId, clickId, bottomId],
+        );
+      },
+    );
+
+    test(
+      'playClick is a no-op for a pure linear switch (no click jacket)',
+      () async {
+        final FakeBackend backend = FakeBackend();
+        final ClickSoundPlayer player = ClickSoundPlayer(backend);
+        await player.init();
+
+        // red is linear → clickAsset is null.
+        expect(SwitchCatalog.red.clickAsset, isNull);
+        await player.playClick(SwitchCatalog.red);
+
+        expect(backend.played, isEmpty);
+      },
+    );
+
+    test('onset/bottom forward volume; muted suppresses all stems', () async {
+      final FakeBackend backend = FakeBackend();
+      final ClickSoundPlayer player = ClickSoundPlayer(backend);
+      await player.init();
+
+      await player.playOnset(SwitchCatalog.red, volume: 0.4);
+      await player.playBottom(SwitchCatalog.red, volume: 0.7);
+      expect(
+        backend.played.map((({int soundId, double volume}) p) => p.volume),
+        <double>[0.4, 0.7],
+      );
+
+      player.muted = true;
+      await player.playOnset(SwitchCatalog.red);
+      await player.playClick(SwitchCatalog.blue);
+      await player.playBottom(SwitchCatalog.red);
+      expect(backend.played, hasLength(2)); // unchanged — all suppressed.
     });
   });
 

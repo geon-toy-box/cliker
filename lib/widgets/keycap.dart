@@ -1,3 +1,4 @@
+import 'package:cliker/audio/press_force.dart';
 import 'package:cliker/providers/settings_providers.dart';
 import 'package:cliker/theme/app_colors.dart';
 import 'package:cliker/theme/app_spacing.dart';
@@ -30,6 +31,12 @@ import 'package:flutter/material.dart';
 /// Each press calls [onPressDown] exactly once (on `onTapDown`) and [onPressUp]
 /// exactly once (on `onTapUp` *or* `onTapCancel`, so a press is always balanced
 /// by a release).
+///
+/// [onPressDown] is handed the press *force* — the touch pressure normalized to
+/// `[0, 1]`, or `null` when the device reports no usable pressure range (the
+/// common case: most touchscreens and the web). A passive [Listener] sniffs the
+/// pointer's pressure at touch-down; the actual press semantics still come from
+/// the [GestureDetector] (tap slop, drag-off cancel) underneath it.
 ///
 /// The [ledMode] selects how the glow behaves:
 ///
@@ -65,8 +72,9 @@ class Keycap extends StatefulWidget {
   /// Text drawn centered on the cap (may be empty).
   final String label;
 
-  /// Called once when a press begins (`onTapDown`).
-  final VoidCallback? onPressDown;
+  /// Called once when a press begins (`onTapDown`), with the normalized press
+  /// [force] in `[0, 1]` or `null` when the device reports no pressure range.
+  final ValueChanged<double?>? onPressDown;
 
   /// Called once when a press ends (`onTapUp` or `onTapCancel`).
   final VoidCallback? onPressUp;
@@ -146,6 +154,11 @@ class _KeycapState extends State<Keycap> with TickerProviderStateMixin {
   /// Whether the cap is currently held down. Exposed for the pressed visual.
   bool _isPressed = false;
 
+  /// The normalized press force captured from the most recent pointer-down, or
+  /// `null` when the device reports no usable pressure range. Read by
+  /// [_handleTapDown] when it fires [Keycap.onPressDown] a beat later.
+  double? _lastForce;
+
   @override
   void initState() {
     super.initState();
@@ -183,6 +196,17 @@ class _KeycapState extends State<Keycap> with TickerProviderStateMixin {
     super.dispose();
   }
 
+  /// Captures the touch pressure at the instant the pointer lands, before the
+  /// tap recognizer declares victory and fires [_handleTapDown]. Devices without
+  /// a force sensor collapse the pressure range, so [normalizeForce] yields null.
+  void _handlePointerDown(PointerDownEvent event) {
+    _lastForce = normalizeForce(
+      event.pressure,
+      event.pressureMin,
+      event.pressureMax,
+    );
+  }
+
   void _handleTapDown(TapDownDetails details) {
     setState(() => _isPressed = true);
     _press.forward();
@@ -193,7 +217,7 @@ class _KeycapState extends State<Keycap> with TickerProviderStateMixin {
         ..reverse(from: 1.0);
     }
     _spawnRipple();
-    widget.onPressDown?.call();
+    widget.onPressDown?.call(_lastForce);
   }
 
   void _handleTapUp(TapUpDetails details) {
@@ -264,23 +288,32 @@ class _KeycapState extends State<Keycap> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: _handleTapDown,
-      onTapUp: _handleTapUp,
-      onTapCancel: _handleTapCancel,
-      behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: widget.size,
-        height: widget.size,
-        child: AnimatedBuilder(
-          // Rebuild on any of the three drivers so the glow tracks press,
-          // hue-cycle, and reactive decay together.
-          animation: Listenable.merge(<Listenable>[_press, _cycle, _reactive]),
-          builder: (BuildContext context, Widget? child) {
-            // Eased press depth in [0, 1].
-            final double depth = Curves.easeOut.transform(_press.value);
-            return _buildStack(context, depth);
-          },
+    return Listener(
+      // Passive pressure sniffing only — the GestureDetector below still owns
+      // the press semantics (tap slop, drag-off cancel).
+      onPointerDown: _handlePointerDown,
+      child: GestureDetector(
+        onTapDown: _handleTapDown,
+        onTapUp: _handleTapUp,
+        onTapCancel: _handleTapCancel,
+        behavior: HitTestBehavior.opaque,
+        child: SizedBox(
+          width: widget.size,
+          height: widget.size,
+          child: AnimatedBuilder(
+            // Rebuild on any of the three drivers so the glow tracks press,
+            // hue-cycle, and reactive decay together.
+            animation: Listenable.merge(<Listenable>[
+              _press,
+              _cycle,
+              _reactive,
+            ]),
+            builder: (BuildContext context, Widget? child) {
+              // Eased press depth in [0, 1].
+              final double depth = Curves.easeOut.transform(_press.value);
+              return _buildStack(context, depth);
+            },
+          ),
         ),
       ),
     );

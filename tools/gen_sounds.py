@@ -10,12 +10,14 @@ cliker는 외부 음원을 받지 않고 이 스크립트로 모든 타건음을
     python3 tools/gen_sounds.py
 
 출력:
-    assets/sounds/<id>_down.wav, <id>_up.wav
+    assets/sounds/<id>_down.wav, <id>_up.wav         (전 스위치 = 26개)
+    assets/sounds/<id>_onset.wav, <id>_bottom.wav    (전 스위치 = 26개)
+    assets/sounds/<id>_click.wav                      (clicky·tactile 5종 = 5개)
     (id ∈ {blue, brown, red, black, white, gray, clear, silentRed,
            silentBlack, speedSilver, darkGray, yellow, magnetic})
-    → 총 26개 WAV.
+    → 총 57개 WAV.
 형식:
-    44100 Hz, mono, 16-bit PCM, 60–160 ms.
+    44100 Hz, mono, 16-bit PCM, 40–160 ms.
 
 설계 (실제 기계식 스위치 음에 가깝게):
     실제 타건음 = 스템/하우징이 부딪치는 "딱/탁" 임팩트(광대역, 매우 짧음)
@@ -32,6 +34,16 @@ cliker는 외부 음원을 받지 않고 이 스크립트로 모든 타건음을
         red   = 조용하고 부드러운 리니어(살짝 어둡게),
         black = 묵직·저역 강조 리니어.
     down(바텀아웃)은 길고/낮고/크게, up(탑아웃/릴리스)은 짧고/높고/작게.
+
+동적 타건(딸깍 ↔ 따~알~깍) 컴포넌트 스템:
+    한 번의 타건은 행정(travel)을 따라 분리 가능한 음향 이벤트의 연속이다 ─
+        onset  ("따")  : 다운스트로크 시작/프리트래블 접촉음. 매우 짧고 어둡고 작다.
+        click  ("알")  : 액추에이션(작동점) 클릭. clicky=밝은 클릭자켓 스냅,
+                         tactile=부드러운 중역 "톡" 범프. (순수 리니어는 없음).
+        bottom ("깍")  : 바텀아웃 충격. down의 몸통(저·중역)을 밝은 자켓 없이.
+    엔진은 빠른 탭이면 셋을 거의 동시에(=down 한 방, "딸깍"), 천천히/약하게 누르면
+    시간차로 분리 재생(onset→click→bottom, "따~알~깍")한다. down/up은 빠른 탭의
+    뭉친 "딸깍"으로 그대로 쓰인다.
 
 표준 라이브러리만 사용한다: wave, struct, math, random, os. (numpy/서드파티 금지)
 """
@@ -501,6 +513,233 @@ SWITCH_PARAMS = {
     },
 }
 
+# 동적 타건용 컴포넌트 스템 파라미터(onset/click/bottom). 구조는 SWITCH_PARAMS와
+# 동일(impacts + modes + duration + peak). click는 clicky·tactile만 가진다(순수
+# 리니어는 클릭자켓이 없어 키 'click' 생략 → 엔진은 onset→bottom의 "따~깍").
+#   onset  : 짧고 어둡고 작은 접촉음.
+#   click  : clicky=밝은 자켓 스냅(고역), tactile=부드러운 중역 범프.
+#   bottom : down의 몸통(밝은 자켓 제외) — 저·중역 무게.
+COMPONENT_PARAMS = {
+    "blue": {
+        "onset": {
+            "duration": 0.050,
+            "peak": 0.30,
+            "impacts": [(0.0000, 0.50, 0.0040, "dark")],
+            "modes": [(700.0, 0.06, 0.012)],
+        },
+        "click": {
+            "duration": 0.060,
+            "peak": 0.80,
+            "impacts": [
+                (0.0000, 0.95, 0.0012, "bright"),
+                (0.0040, 0.60, 0.0009, "bright"),
+            ],
+            "modes": [(2900.0, 0.10, 0.008), (4300.0, 0.07, 0.006)],
+        },
+        "bottom": {
+            "duration": 0.090,
+            "peak": 0.80,
+            "impacts": [(0.0000, 0.85, 0.0030, "mid")],
+            "modes": [(720.0, 0.12, 0.018), (1850.0, 0.08, 0.011)],
+        },
+    },
+    "brown": {
+        "onset": {
+            "duration": 0.050,
+            "peak": 0.28,
+            "impacts": [(0.0000, 0.45, 0.0045, "dark")],
+            "modes": [(420.0, 0.07, 0.013)],
+        },
+        "click": {
+            "duration": 0.058,
+            "peak": 0.50,
+            "impacts": [(0.0000, 0.60, 0.0022, "mid")],
+            "modes": [(980.0, 0.10, 0.010), (1700.0, 0.05, 0.008)],
+        },
+        "bottom": {
+            "duration": 0.100,
+            "peak": 0.78,
+            "impacts": [(0.0000, 0.80, 0.0035, "mid")],
+            "modes": [(190.0, 0.12, 0.026), (520.0, 0.14, 0.022)],
+        },
+    },
+    "red": {
+        "onset": {
+            "duration": 0.050,
+            "peak": 0.22,
+            "impacts": [(0.0000, 0.40, 0.0050, "dark")],
+            "modes": [(300.0, 0.06, 0.013)],
+        },
+        "bottom": {
+            "duration": 0.090,
+            "peak": 0.58,
+            "impacts": [(0.0000, 0.66, 0.0042, "dark")],
+            "modes": [(160.0, 0.10, 0.022), (470.0, 0.13, 0.020)],
+        },
+    },
+    "black": {
+        "onset": {
+            "duration": 0.055,
+            "peak": 0.26,
+            "impacts": [(0.0000, 0.46, 0.0058, "dark")],
+            "modes": [(220.0, 0.08, 0.016)],
+        },
+        "bottom": {
+            "duration": 0.120,
+            "peak": 0.80,
+            "impacts": [(0.0000, 0.76, 0.0058, "dark")],
+            "modes": [(110.0, 0.20, 0.044), (360.0, 0.14, 0.027)],
+        },
+    },
+    "white": {
+        "onset": {
+            "duration": 0.052,
+            "peak": 0.30,
+            "impacts": [(0.0000, 0.50, 0.0042, "dark")],
+            "modes": [(560.0, 0.06, 0.013)],
+        },
+        "click": {
+            "duration": 0.062,
+            "peak": 0.74,
+            "impacts": [
+                (0.0000, 0.90, 0.0014, "bright"),
+                (0.0040, 0.55, 0.0010, "bright"),
+            ],
+            "modes": [(2450.0, 0.10, 0.008), (3800.0, 0.06, 0.006)],
+        },
+        "bottom": {
+            "duration": 0.094,
+            "peak": 0.80,
+            "impacts": [(0.0000, 0.82, 0.0034, "mid")],
+            "modes": [(560.0, 0.13, 0.020), (1500.0, 0.08, 0.012)],
+        },
+    },
+    "gray": {
+        "onset": {
+            "duration": 0.052,
+            "peak": 0.30,
+            "impacts": [(0.0000, 0.50, 0.0050, "dark")],
+            "modes": [(380.0, 0.08, 0.014)],
+        },
+        "click": {
+            "duration": 0.060,
+            "peak": 0.58,
+            "impacts": [(0.0000, 0.70, 0.0024, "mid")],
+            "modes": [(880.0, 0.11, 0.011), (1550.0, 0.06, 0.008)],
+        },
+        "bottom": {
+            "duration": 0.110,
+            "peak": 0.84,
+            "impacts": [(0.0000, 0.90, 0.0040, "mid")],
+            "modes": [(150.0, 0.16, 0.030), (430.0, 0.16, 0.024)],
+        },
+    },
+    "clear": {
+        "onset": {
+            "duration": 0.050,
+            "peak": 0.28,
+            "impacts": [(0.0000, 0.46, 0.0042, "dark")],
+            "modes": [(440.0, 0.07, 0.013)],
+        },
+        "click": {
+            "duration": 0.058,
+            "peak": 0.54,
+            "impacts": [(0.0000, 0.66, 0.0022, "mid")],
+            "modes": [(1150.0, 0.11, 0.010), (2000.0, 0.06, 0.007)],
+        },
+        "bottom": {
+            "duration": 0.100,
+            "peak": 0.80,
+            "impacts": [(0.0000, 0.84, 0.0032, "mid")],
+            "modes": [(210.0, 0.11, 0.024), (600.0, 0.15, 0.021)],
+        },
+    },
+    "silentRed": {
+        "onset": {
+            "duration": 0.045,
+            "peak": 0.18,
+            "impacts": [(0.0000, 0.34, 0.0052, "dark")],
+            "modes": [(300.0, 0.05, 0.011)],
+        },
+        "bottom": {
+            "duration": 0.085,
+            "peak": 0.42,
+            "impacts": [(0.0000, 0.60, 0.0050, "dark")],
+            "modes": [(150.0, 0.10, 0.016), (430.0, 0.11, 0.013)],
+        },
+    },
+    "silentBlack": {
+        "onset": {
+            "duration": 0.050,
+            "peak": 0.22,
+            "impacts": [(0.0000, 0.40, 0.0062, "dark")],
+            "modes": [(210.0, 0.07, 0.014)],
+        },
+        "bottom": {
+            "duration": 0.110,
+            "peak": 0.56,
+            "impacts": [(0.0000, 0.64, 0.0064, "dark")],
+            "modes": [(104.0, 0.17, 0.032), (340.0, 0.11, 0.019)],
+        },
+    },
+    "speedSilver": {
+        "onset": {
+            "duration": 0.040,
+            "peak": 0.22,
+            "impacts": [(0.0000, 0.42, 0.0034, "mid")],
+            "modes": [(360.0, 0.06, 0.011)],
+        },
+        "bottom": {
+            "duration": 0.066,
+            "peak": 0.56,
+            "impacts": [(0.0000, 0.68, 0.0026, "mid")],
+            "modes": [(200.0, 0.07, 0.012), (560.0, 0.12, 0.011)],
+        },
+    },
+    "darkGray": {
+        "onset": {
+            "duration": 0.058,
+            "peak": 0.28,
+            "impacts": [(0.0000, 0.50, 0.0066, "dark")],
+            "modes": [(190.0, 0.09, 0.018)],
+        },
+        "bottom": {
+            "duration": 0.130,
+            "peak": 0.86,
+            "impacts": [(0.0000, 0.82, 0.0066, "dark")],
+            "modes": [(96.0, 0.22, 0.050), (320.0, 0.15, 0.031)],
+        },
+    },
+    "yellow": {
+        "onset": {
+            "duration": 0.050,
+            "peak": 0.24,
+            "impacts": [(0.0000, 0.42, 0.0045, "mid")],
+            "modes": [(330.0, 0.07, 0.014)],
+        },
+        "bottom": {
+            "duration": 0.095,
+            "peak": 0.64,
+            "impacts": [(0.0000, 0.72, 0.0040, "mid")],
+            "modes": [(170.0, 0.12, 0.024), (500.0, 0.14, 0.021)],
+        },
+    },
+    "magnetic": {
+        "onset": {
+            "duration": 0.042,
+            "peak": 0.16,
+            "impacts": [(0.0000, 0.32, 0.0050, "dark")],
+            "modes": [(300.0, 0.05, 0.010)],
+        },
+        "bottom": {
+            "duration": 0.080,
+            "peak": 0.40,
+            "impacts": [(0.0000, 0.54, 0.0048, "dark")],
+            "modes": [(150.0, 0.09, 0.015), (420.0, 0.10, 0.012)],
+        },
+    },
+}
+
 # 생성 순서: 카탈로그와 동일, 각 스위치는 down→up. 결정성을 위해 고정이다.
 SWITCH_ORDER = [
     "blue",
@@ -518,6 +757,11 @@ SWITCH_ORDER = [
     "magnetic",
 ]
 PHASE_ORDER = ["down", "up"]
+
+# 컴포넌트 생성 순서. down/up 전체를 먼저 만든 뒤 이 단계들을 생성하므로
+# 기존 26개 down/up WAV의 RNG 추첨 순서·바이트가 보존된다(순수 추가). click은
+# COMPONENT_PARAMS에 해당 키가 있는 스위치(clicky·tactile)만 생성한다.
+COMPONENT_PHASE_ORDER = ["onset", "click", "bottom"]
 
 
 def synthesize(rng, spec):
@@ -544,9 +788,24 @@ def main():
     # 단일 RNG를 한 번만 시드한다. 생성 순서가 고정이므로 출력은 결정적이다.
     rng = random.Random(RANDOM_SEED)
     written = []
+    # 1) down/up 전체 — 기존 순서/바이트 보존(이 블록은 절대 변경 금지).
     for switch_id in SWITCH_ORDER:
         for phase in PHASE_ORDER:
             spec = SWITCH_PARAMS[switch_id][phase]
+            pcm = synthesize(rng, spec)
+            filename = "{0}_{1}.wav".format(switch_id, phase)
+            path = os.path.join(OUTPUT_DIR, filename)
+            write_wav(path, pcm)
+            size = os.path.getsize(path)
+            written.append((filename, size))
+            print("wrote {0} ({1} bytes)".format(path, size))
+    # 2) 동적 타건 컴포넌트(onset/click/bottom) — down/up 뒤에 추가 생성.
+    for switch_id in SWITCH_ORDER:
+        params = COMPONENT_PARAMS[switch_id]
+        for phase in COMPONENT_PHASE_ORDER:
+            spec = params.get(phase)
+            if spec is None:
+                continue  # 순수 리니어는 click 없음.
             pcm = synthesize(rng, spec)
             filename = "{0}_{1}.wav".format(switch_id, phase)
             path = os.path.join(OUTPUT_DIR, filename)
